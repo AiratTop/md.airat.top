@@ -14,15 +14,9 @@ The app is published and available at: https://md.airat.top/
 - Dark mode based on browser settings with manual override.
 - No server, no third-party services.
 
-## Local development
+## Local usage
 
-Serve the folder with any static server:
-
-```bash
-python -m http.server
-```
-
-Then open `http://localhost:8000`.
+Open `index.html` in your browser.
 
 ## License
 
