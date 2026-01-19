@@ -5,11 +5,14 @@ const copyBtn = document.getElementById("copyBtn");
 const syncToggle = document.getElementById("syncScroll");
 const darkToggle = document.getElementById("darkMode");
 const statusEl = document.getElementById("status");
+const splitPane = document.getElementById("splitPane");
+const dragHandle = document.getElementById("dragHandle");
 
 const STORAGE_KEYS = {
   content: "md-preview-content",
   theme: "md-preview-theme",
   themeMode: "md-preview-theme-mode",
+  split: "md-preview-split",
   sync: "md-preview-sync",
 };
 
@@ -122,6 +125,7 @@ marked.setOptions({
 const storedContent = getStored(STORAGE_KEYS.content, "");
 const storedTheme = getStored(STORAGE_KEYS.theme, "system");
 const storedThemeMode = getStored(STORAGE_KEYS.themeMode, "system");
+const storedSplit = getStored(STORAGE_KEYS.split, "");
 const storedSync = getStored(STORAGE_KEYS.sync, "true");
 
 themeMode = storedThemeMode === "manual" ? "manual" : "system";
@@ -133,6 +137,9 @@ if (themeMode !== "manual") {
 
 applyTheme(themePreference, { persist: false });
 syncToggle.checked = storedSync !== "false";
+if (storedSplit) {
+  splitPane.style.setProperty("--split-left", storedSplit);
+}
 setContent(storedContent.trim() ? storedContent : SAMPLE);
 
 textarea.addEventListener("input", () => {
@@ -189,3 +196,46 @@ syncToggle.addEventListener("change", () => {
     syncScroll(textarea, preview);
   }
 });
+
+let isDragging = false;
+const MIN_PANE_WIDTH = 240;
+
+const updateSplit = (clientX) => {
+  const rect = splitPane.getBoundingClientRect();
+  const offsetX = clientX - rect.left;
+  const maxLeft = rect.width - MIN_PANE_WIDTH;
+  const clamped = Math.max(MIN_PANE_WIDTH, Math.min(offsetX, maxLeft));
+  const percent = (clamped / rect.width) * 100;
+  const value = `${percent}%`;
+  splitPane.style.setProperty("--split-left", value);
+  setStored(STORAGE_KEYS.split, value);
+};
+
+const stopDrag = (event) => {
+  if (!isDragging) {
+    return;
+  }
+  isDragging = false;
+  dragHandle.classList.remove("is-active");
+  dragHandle.releasePointerCapture(event.pointerId);
+};
+
+dragHandle.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) {
+    return;
+  }
+  isDragging = true;
+  dragHandle.classList.add("is-active");
+  dragHandle.setPointerCapture(event.pointerId);
+  updateSplit(event.clientX);
+});
+
+dragHandle.addEventListener("pointermove", (event) => {
+  if (!isDragging) {
+    return;
+  }
+  updateSplit(event.clientX);
+});
+
+dragHandle.addEventListener("pointerup", stopDrag);
+dragHandle.addEventListener("pointercancel", stopDrag);

@@ -201,10 +201,15 @@ body::before {
 
 .split {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  --split-left: 50%;
+  grid-template-columns: minmax(260px, var(--split-left)) 12px minmax(
+      260px,
+      1fr
+    );
+  gap: 12px;
   flex: 1;
   min-height: 0;
+  align-items: stretch;
 }
 
 .pane {
@@ -217,6 +222,30 @@ body::before {
   overflow: hidden;
   min-height: 0;
   animation: rise 0.7s ease 0.2s both;
+}
+
+.divider {
+  position: relative;
+  border-radius: 999px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  cursor: col-resize;
+  margin: 10px 0;
+  user-select: none;
+  touch-action: none;
+  transition: background 0.2s ease;
+}
+
+.divider::before {
+  content: "";
+  position: absolute;
+  inset: 35% 2px;
+  border-radius: 999px;
+  background: rgba(242, 166, 64, 0.7);
+  opacity: 0.65;
+}
+
+.divider.is-active {
+  background: rgba(242, 166, 64, 0.2);
 }
 
 .pane__header {
@@ -344,6 +373,10 @@ html[data-theme="dark"] .preview pre {
 @media (max-width: 980px) {
   .split {
     grid-template-columns: 1fr;
+  }
+
+  .divider {
+    display: none;
   }
 
   .topbar {

@@ -66,7 +66,7 @@
         </div>
       </header>
 
-      <main class="split">
+      <main class="split" id="splitPane">
         <section class="pane">
           <div class="pane__header">Markdown</div>
           <textarea
@@ -75,6 +75,13 @@
             aria-label="Markdown input"
           ></textarea>
         </section>
+        <div
+          class="divider"
+          id="dragHandle"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize panels"
+        ></div>
         <section class="pane">
           <div class="pane__header">Preview</div>
           <div id="preview" class="preview" aria-live="polite"></div>
