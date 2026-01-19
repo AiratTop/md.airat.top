@@ -1,0 +1,6 @@
+# md.airat.top
+
+This site is a static, client-side markdown live preview tool.
+
+Repository: https://github.com/AiratTop/md.airat.top
+License: See repository.

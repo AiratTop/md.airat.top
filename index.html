@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Local, private markdown live preview with synced scrolling."
+    />
+    <title>md.airat.top — Markdown Live Preview</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="backdrop">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">md</div>
+          <div>
+            <h1>Markdown Live Preview</h1>
+            <p>Private, fast, and fully local.</p>
+          </div>
+        </div>
+        <div class="controls" role="group" aria-label="Preview controls">
+          <button class="btn" id="resetBtn" type="button">Reset</button>
+          <button class="btn btn--ghost" id="copyBtn" type="button">Copy</button>
+          <label class="toggle">
+            <input id="syncScroll" type="checkbox" checked />
+            <span>Sync Scroll</span>
+          </label>
+          <label class="toggle">
+            <input id="darkMode" type="checkbox" checked />
+            <span>Dark Mode</span>
+          </label>
+          <a
+            class="repo"
+            href="https://github.com/AiratTop/md.airat.top"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            GitHub
+          </a>
+        </div>
+      </header>
+
+      <main class="split">
+        <section class="pane">
+          <div class="pane__header">Markdown</div>
+          <textarea
+            id="markdownInput"
+            spellcheck="false"
+            aria-label="Markdown input"
+          ></textarea>
+        </section>
+        <section class="pane">
+          <div class="pane__header">Preview</div>
+          <div id="preview" class="preview" aria-live="polite"></div>
+        </section>
+      </main>
+
+      <div class="status" id="status" aria-live="polite"></div>
+    </div>
+
+    <script src="vendor/marked.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
