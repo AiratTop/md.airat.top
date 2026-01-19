@@ -9,6 +9,7 @@ const statusEl = document.getElementById("status");
 const STORAGE_KEYS = {
   content: "md-preview-content",
   theme: "md-preview-theme",
+  themeMode: "md-preview-theme-mode",
   sync: "md-preview-sync",
 };
 
@@ -23,7 +24,7 @@ Write on the left. See the preview on the right.
 
 ### Code block
 ~~~js
-const greet = (name) => `Hello, \${name}!`;
+const greet = (name) => "Hello, " + name + "!";
 console.log(greet("md.airat.top"));
 ~~~
 
@@ -64,10 +65,22 @@ const showStatus = (message) => {
   }, 1600);
 };
 
-const applyTheme = (isDark) => {
-  document.documentElement.dataset.theme = isDark ? "dark" : "light";
-  darkToggle.checked = isDark;
-  setStored(STORAGE_KEYS.theme, isDark ? "dark" : "light");
+const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+const normalizeTheme = (value) =>
+  value === "dark" || value === "light" || value === "system" ? value : "system";
+const resolveTheme = (value) =>
+  value === "system" ? (mediaQuery.matches ? "dark" : "light") : value;
+
+let themeMode = "system";
+let themePreference = "system";
+
+const applyTheme = (value, { persist = true } = {}) => {
+  const resolved = resolveTheme(value);
+  document.documentElement.dataset.theme = resolved;
+  darkToggle.checked = resolved === "dark";
+  if (persist) {
+    setStored(STORAGE_KEYS.theme, value);
+  }
 };
 
 const updatePreview = () => {
@@ -107,10 +120,18 @@ marked.setOptions({
 });
 
 const storedContent = getStored(STORAGE_KEYS.content, "");
-const storedTheme = getStored(STORAGE_KEYS.theme, "dark");
+const storedTheme = getStored(STORAGE_KEYS.theme, "system");
+const storedThemeMode = getStored(STORAGE_KEYS.themeMode, "system");
 const storedSync = getStored(STORAGE_KEYS.sync, "true");
 
-applyTheme(storedTheme !== "light");
+themeMode = storedThemeMode === "manual" ? "manual" : "system";
+themePreference = normalizeTheme(storedTheme);
+if (themeMode !== "manual") {
+  themePreference = "system";
+  setStored(STORAGE_KEYS.theme, "system");
+}
+
+applyTheme(themePreference, { persist: false });
 syncToggle.checked = storedSync !== "false";
 setContent(storedContent.trim() ? storedContent : SAMPLE);
 
@@ -150,7 +171,16 @@ copyBtn.addEventListener("click", async () => {
 });
 
 darkToggle.addEventListener("change", () => {
-  applyTheme(darkToggle.checked);
+  themeMode = "manual";
+  setStored(STORAGE_KEYS.themeMode, themeMode);
+  themePreference = darkToggle.checked ? "dark" : "light";
+  applyTheme(themePreference);
+});
+
+mediaQuery.addEventListener("change", () => {
+  if (themeMode === "system") {
+    applyTheme("system", { persist: false });
+  }
 });
 
 syncToggle.addEventListener("change", () => {
