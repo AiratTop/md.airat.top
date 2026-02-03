@@ -376,6 +376,16 @@ html[data-theme="dark"] .preview pre {
   font-size: 0.95rem;
 }
 
+.doc-footer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.doc-footer a:hover {
+  color: var(--accent-2);
+  text-decoration: underline;
+}
+
 @media (max-width: 980px) {
   .split {
     grid-template-columns: 1fr;
