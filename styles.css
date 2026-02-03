@@ -370,6 +370,12 @@ html[data-theme="dark"] .preview pre {
   transform: translateY(0);
 }
 
+.doc-footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 @media (max-width: 980px) {
   .split {
     grid-template-columns: 1fr;
