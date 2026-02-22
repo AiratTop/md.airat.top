@@ -1,6 +1,6 @@
 # Markdown Live Preview
 
-[![md.airat.top](https://raw.githubusercontent.com/AiratTop/md.airat.top/main/canvas.png)](https://md.airat.top/)
+[![md.airat.top](https://raw.githubusercontent.com/AiratTop/md.airat.top/main/public_html/canvas.png)](https://md.airat.top/)
 
 A local, private markdown live preview tool with a split editor and preview. Runs as a pure static site and works on Cloudflare Pages or GitHub Pages.
 
