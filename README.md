@@ -4,7 +4,8 @@
 
 A local, private markdown live preview tool with a split editor and preview. Runs as a pure static site and works on Cloudflare Pages or GitHub Pages.
 
-The app is published and available at: https://md.airat.top/ and https://markdown.airat.top/
+Live site: https://md.airat.top and https://markdown.airat.top
+Status page: https://status.airat.top
 
 ## Features
 
