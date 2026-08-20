@@ -2,7 +2,7 @@
 
 [![md.airat.top](https://raw.githubusercontent.com/AiratTop/md.airat.top/main/public_html/canvas.png)](https://md.airat.top/)
 
-A local, private markdown live preview tool with a split editor and preview. Runs as a pure static site and works on Cloudflare Pages or GitHub Pages.
+A local, private markdown live preview tool with a split editor and preview. Runs as a pure static site and is deployed as static assets on Cloudflare Workers.
 
 - Live site: https://md.airat.top
 - Status page: https://status.airat.top
@@ -17,7 +17,11 @@ A local, private markdown live preview tool with a split editor and preview. Run
 
 ## Local usage
 
-Open `index.html` in your browser.
+Open `public_html/index.html` in your browser.
+
+## Deployment
+
+Cloudflare Workers Builds deploys the contents of `public_html` as static assets. The project has no build step; deployment uses `npx wrangler deploy` with the settings in `wrangler.jsonc`.
 
 ## License
 
