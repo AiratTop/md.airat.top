@@ -17,7 +17,7 @@ Public browser Markdown live preview tool (`md.airat.top`).
 ## Site Conventions
 - Keep UI style consistent with other AiratTop tools.
 - Keep SEO metadata and social tags in `index.html`.
-- Keep the Google Analytics counter and other required site-verification tags; Yandex verification is intentionally not used.
+- Keep the Google Analytics counter and other required site-verification tags.
 - Publish static assets from `public_html`.
 
 ## AI Working Notes
