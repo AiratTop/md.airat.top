@@ -5,6 +5,7 @@
 A local, private markdown live preview tool with a split editor and preview. Runs as a pure static site and is deployed as static assets on Cloudflare Workers.
 
 - Live site: https://md.airat.top
+- Redirect: https://markdown.airat.top
 - Status page: https://status.airat.top
 
 ## Features
