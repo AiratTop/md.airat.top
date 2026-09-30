@@ -413,6 +413,27 @@ test("the sanitiser allows HTML only in markdown, and SVG only in diagrams", asy
   await context.close();
 });
 
+test("an alert title shows its icon, in the alert colour, beside the text", async () => {
+  const { page, context } = await openPage("/", { draft: "> [!NOTE]\n> Read this." });
+  const found = await page.evaluate(() => {
+    const title = document.querySelector("#preview .markdown-alert-title");
+    const icon = getComputedStyle(title, "::before");
+    return {
+      svg: title.querySelectorAll("svg").length,
+      mask: icon.maskImage || icon.webkitMaskImage,
+      width: icon.width,
+      sameColour: icon.backgroundColor === getComputedStyle(title).color,
+      gap: getComputedStyle(title).columnGap,
+    };
+  });
+  assert.equal(found.svg, 0);
+  assert.match(found.mask, /^url\("data:image\/svg\+xml/);
+  assert.equal(found.width, "16px");
+  assert.equal(found.sameColour, true);
+  assert.equal(found.gap, "8px");
+  await context.close();
+});
+
 test("table columns keep their alignment", async () => {
   const { page, context } = await openPage("/", { draft: "| L | C | R |\n| :- | :-: | -: |\n| x | y | z |" });
   const aligned = await page.evaluate(() =>

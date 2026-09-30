@@ -80,7 +80,9 @@ export function createMarkdown() {
     .use(ins)
     .use(abbr)
     .use(deflist)
-    .use(alerts) // > [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]
+    // > [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]. No icons from the plugin:
+    // its inline <svg> does not survive sanitising; styles.css draws them instead.
+    .use(alerts, { icons: {} })
     .use(frontMatter, () => {})
     // Math: $inline$, $$display$$ and ```math fences. Conservative about dollars — no space
     // inside the delimiters, no digit next to them — so "$5 and $10" stays prose. The
