@@ -15,6 +15,8 @@ links that delete themselves after 24 hours. Runs on Cloudflare Workers with a D
   strikethrough, autolinks) and more:
   - syntax highlighting for fenced code with a language;
   - [Mermaid](https://mermaid.js.org) diagrams in ` ```mermaid ` blocks;
+  - math with [KaTeX](https://katex.org): `$inline$`, `$$display$$` and ` ```math `
+    blocks (a dollar next to a digit or a space stays a dollar, so prices are safe);
   - footnotes, subscript (`H~2~O`) and superscript (`19^th^`), `==highlight==`,
     `++inserted++` text, abbreviations, definition lists and `:emoji:` shortcodes;
   - YAML front matter, shown as a table.

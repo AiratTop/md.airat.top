@@ -316,3 +316,32 @@ test("mermaid draws a valid diagram, marks an invalid one, and its SVG is saniti
   assert.equal(handlers, 0);
   await context.close();
 });
+
+test("math renders with KaTeX; prices stay prose and untrusted commands stay out", async () => {
+  const draft = [
+    "Inline $E = mc^2$, and a price: $5 and $10.",
+    "",
+    "$$",
+    "\\frac{1}{2}",
+    "$$",
+    "",
+    "```math",
+    "a^2 + b^2 = c^2",
+    "```",
+    "",
+    "Link attempt $\\href{https://example.com}{x}$.",
+  ].join("\n");
+  const { page, context } = await openPage("/", { draft });
+  await page.waitForSelector("#preview .katex", { timeout: 10_000 });
+  const found = await page.evaluate(() => ({
+    rendered: document.querySelectorAll("#preview .math-tex.is-rendered").length,
+    display: document.querySelectorAll("#preview .katex-display").length,
+    prose: document.querySelector("#preview p").textContent,
+    links: document.querySelectorAll("#preview .katex a").length,
+  }));
+  assert.equal(found.rendered, 4);
+  assert.equal(found.display, 2);
+  assert.match(found.prose, /\$5 and \$10/);
+  assert.equal(found.links, 0, "\\href must not produce a link");
+  await context.close();
+});
