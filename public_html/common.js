@@ -120,6 +120,7 @@ const saveShareToken = (share, contentHash) => {
     url: share.url,
     markdownUrl: share.markdownUrl,
     jsonUrl: share.jsonUrl,
+    htmlUrl: share.htmlUrl,
   };
   return setStored(STORAGE_KEYS.shares, JSON.stringify(tokens));
 };

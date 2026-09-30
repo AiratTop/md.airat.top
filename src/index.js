@@ -73,8 +73,8 @@ async function enforceRateLimit(request, env, url) {
   );
 }
 
-/** `/{id}`, `/{id}.md`, `/{id}.json` — any case, so the router can redirect to upper. */
-const SHARE_PATH = /^\/([0-9A-Za-z]{26})(\.md|\.json)?$/;
+/** `/{id}` and its `.md`, `.json`, `.html` — any case, so the router can redirect to upper. */
+const SHARE_PATH = /^\/([0-9A-Za-z]{26})(\.md|\.json|\.html)?$/;
 
 export default {
   async fetch(request, env, ctx) {
@@ -111,7 +111,8 @@ export default {
         // Crockford base32 is case-insensitive, but one share should have one URL.
         if (candidate !== id) return redirect(`${url.origin}/${id}${suffix}${url.search}`);
         if (request.method !== "GET" && request.method !== "HEAD") return error("Method not allowed.", 405);
-        return serveShare(request, env, id, suffix === ".md" ? "md" : suffix === ".json" ? "json" : "page");
+        const format = { ".md": "md", ".json": "json", ".html": "html" }[suffix] ?? "page";
+        return serveShare(request, env, id, format);
       }
     }
 

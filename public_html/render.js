@@ -1,120 +1,14 @@
 // Markdown → safe HTML, shared by the editor and the shared-document page.
 //
-// markdown-it with its official plugins, highlight.js for code, KaTeX for math and
-// mermaid for diagrams, all from vendor/ (built by `npm run vendor`). The markdown on either page can be
+// The markdown dialect itself lives in src/markdown.js, shared with the Worker's
+// /{id}.html and bundled into vendor/markdown-kit.js (`npm run vendor`); KaTeX and mermaid
+// load from vendor/ when a document needs them. The markdown on either page can be
 // somebody else's — a shared document, or one opened from a share into the editor — so
 // everything goes through DOMPurify before it reaches the DOM. Style is stripped as well
 // as script, so a document cannot restyle the page around it into something that looks
 // like part of the site.
 
-const { MarkdownIt, plugins, hljs, loadYaml } = MarkdownKit;
-
-const escapeHtml = (value) =>
-  String(value).replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
-
-const md = new MarkdownIt({
-  html: true, // raw HTML is allowed in, and DOMPurify decides what survives
-  linkify: true,
-  breaks: true,
-  // Only when the fence names a language highlight.js knows, as GitHub does.
-  highlight(code, info) {
-    const language = info.trim().split(/\s+/)[0].toLowerCase();
-    if (!language || !hljs.getLanguage(language)) {
-      return "";
-    }
-    const html = hljs.highlight(code, { language, ignoreIllegals: true }).value;
-    return `<pre><code class="hljs language-${escapeHtml(language)}">${html}</code></pre>`;
-  },
-})
-  .use(plugins.sub)
-  .use(plugins.sup)
-  .use(plugins.footnote)
-  .use(plugins.emoji)
-  .use(plugins.mark)
-  .use(plugins.ins)
-  .use(plugins.abbr)
-  .use(plugins.deflist)
-  .use(plugins.alerts) // > [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]
-  .use(plugins.frontMatter, () => {})
-  // Math: $inline$, $$display$$ and ```math fences. Conservative about dollars — no space
-  // inside the delimiters, no digit next to them — so "$5 and $10" stays prose. The
-  // plugin only parses; see renderMath() for why the TeX is rendered after sanitising.
-  .use(plugins.math, {
-    allow_space: false,
-    allow_digits: false,
-    double_inline: true,
-    allow_labels: false,
-    renderer: (tex, { displayMode }) => mathPlaceholder(tex, displayMode),
-  });
-
-function mathPlaceholder(tex, displayMode) {
-  return displayMode
-    ? `<div class="math-tex is-display">${escapeHtml(tex)}</div>\n`
-    : `<span class="math-tex">${escapeHtml(tex)}</span>`;
-}
-
-// Front matter shows as a one-row table, the way GitHub shows it. Anything that is not a
-// plain mapping — a list, a scalar, YAML that does not parse — shows as the YAML itself.
-const frontMatterCell = (value) => {
-  if (value === null || value === undefined) return "";
-  if (Array.isArray(value)) return value.map(frontMatterCell).join(", ");
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  if (typeof value === "object") return escapeHtml(JSON.stringify(value));
-  return escapeHtml(value);
-};
-
-md.renderer.rules.front_matter = (tokens, index) => {
-  const source = tokens[index].meta;
-  let data = null;
-  try {
-    data = loadYaml(source);
-  } catch (error) {
-    data = null;
-  }
-  if (!data || typeof data !== "object" || Array.isArray(data) || !Object.keys(data).length) {
-    return `<pre class="front-matter"><code>${escapeHtml(source)}</code></pre>\n`;
-  }
-  const keys = Object.keys(data);
-  return (
-    `<table class="front-matter"><thead><tr>${keys.map((key) => `<th>${escapeHtml(key)}</th>`).join("")}</tr></thead>` +
-    `<tbody><tr>${keys.map((key) => `<td>${frontMatterCell(data[key])}</td>`).join("")}</tr></tbody></table>\n`
-  );
-};
-
-// Mermaid fences become a placeholder that renderDiagrams() replaces with the drawing;
-// until then, and if the diagram does not parse, the source shows as code.
-const defaultFence = md.renderer.rules.fence;
-md.renderer.rules.fence = (tokens, index, options, env, self) => {
-  const token = tokens[index];
-  const language = token.info.trim().split(/\s+/)[0].toLowerCase();
-  if (language === "mermaid") {
-    return `<pre class="mermaid-source"><code>${escapeHtml(token.content)}</code></pre>\n`;
-  }
-  if (language === "math") {
-    return mathPlaceholder(token.content, true);
-  }
-  return defaultFence(tokens, index, options, env, self);
-};
-
-// Task lists ("- [ ]" / "- [x]"), which markdown-it leaves to plugins. They render as a
-// symbol rather than an <input>: DOMPurify removes every input, and with it the only
-// thing that told done from not done.
-md.core.ruler.after("inline", "task-lists", (state) => {
-  const tokens = state.tokens;
-  for (let i = 2; i < tokens.length; i++) {
-    if (tokens[i].type !== "inline" || tokens[i - 2].type !== "list_item_open") continue;
-    const first = tokens[i].children[0];
-    const match = first && first.type === "text" && /^\[([ xX])\][ \t]/.exec(first.content);
-    if (!match) continue;
-    const done = match[1] !== " ";
-    const box = new state.Token("html_inline", "", 0);
-    box.content = done
-      ? '<span class="task-box is-done" role="img" aria-label="Done">☑</span> '
-      : '<span class="task-box" role="img" aria-label="Not done">☐</span> ';
-    first.content = first.content.slice(match[0].length);
-    tokens[i].children.unshift(box);
-  }
-});
+const { md, escapeHtml } = MarkdownKit;
 
 const USER_ID_PREFIX = "user-content-";
 

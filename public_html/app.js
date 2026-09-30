@@ -24,6 +24,7 @@ const shareExpiry = inDialog("shareExpiry");
 const shareOpen = inDialog("shareOpen");
 const shareRaw = inDialog("shareRaw");
 const shareJson = inDialog("shareJson");
+const shareHtml = inDialog("shareHtml");
 const shareDelete = inDialog("shareDelete");
 const shareNew = inDialog("shareNew");
 const shareReused = inDialog("shareReused");
@@ -234,6 +235,8 @@ const showResult = (share, { reused = false, tokenStored = true } = {}) => {
   shareOpen.href = share.url;
   shareRaw.href = share.markdownUrl;
   shareJson.href = share.jsonUrl;
+  // Links remembered before .html existed have no htmlUrl; it follows from the page's.
+  shareHtml.href = share.htmlUrl ?? `${share.url}.html`;
   shareExpiry.textContent = `${formatDateTime(share.expiresAt)} (${formatRemaining(share.expiresAt)})`;
   shareResultHeading.textContent = reused ? "Already shared" : "Link created";
   shareReused.hidden = !reused;
