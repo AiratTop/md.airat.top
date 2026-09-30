@@ -20,28 +20,29 @@ and not a secret store — see `../secret.airat.top` for that.
   `.github/workflows/ci.yml` runs the same checks on pull requests with no credentials.
 - Custom domain: attached in the Cloudflare dashboard, not declared in `wrangler.jsonc`.
 - Architecture sibling: `../secret.airat.top` (same Worker/D1/rate-limiter/test layout).
-  Representation URLs (`.md`, `.json`) follow `../orator-space`.
+  Representation URLs (`.md`, `.json`, `.html`) follow `../orator-space`.
 
 ## Structure
 - Worker entry: `src/index.js` — routing, rate limiting, cron sweep.
 - `src/address.js` the rate-limit bucket (IPv6 per /64);
-  `src/share.js` the three representations of a share and the page title;
+  `src/share.js` the page and the `.md`/`.json`/`.html` representations, and the title;
+  `src/markdown.js` the markdown dialect, shared with the browser bundle;
+  `src/html.js` the server-side rendering and cleaning behind `/{id}.html`;
   `src/api.js` create/delete; `src/db.js` every D1 statement; `src/http.js` response
   headers and the body reader; `src/limits.js` the numbers; `src/ids.js` ULIDs.
 - Schema: `migrations/`, applied with `wrangler d1 migrations apply DB`.
 - Static UI in `public_html/`:
   - `index.html` + `app.js` the editor and the share dialog;
   - `view.html` + `view.js` the shared-document page (the Worker fills the shell);
-  - `render.js` markdown → sanitised HTML, used by both pages: markdown-it and its
-    official plugins, highlight.js, task lists, front matter as a table, and
-    `renderDiagrams()` for mermaid, `renderMath()` for KaTeX; everything goes through
-    DOMPurify;
+  - `render.js` markdown → sanitised HTML in the browser, used by both pages: the
+    dialect from `src/markdown.js` (via `vendor/markdown-kit.js`), DOMPurify, and
+    `renderDiagrams()` for mermaid, `renderMath()` for KaTeX;
   - `common.js` storage, theme, delete tokens, date formatting, used by both pages;
   - `export.js` the Export menu on both pages: Markdown, standalone HTML, PDF (print);
   - `sample.md` the tour shown on a first visit and by Reset;
   - `vendor/` built by `npm run vendor` (`scripts/vendor.mjs`) from pinned
-    devDependencies — never edited by hand: `markdown-kit.js` (the libraries, entry
-    `scripts/markdown-kit.entry.js`), `mermaid/` (ESM, one chunk per diagram type,
+    devDependencies — never edited by hand: `markdown-kit.js` (`src/markdown.js` with
+    everything it imports; entry `scripts/markdown-kit.entry.js`), `mermaid/` (ESM, one chunk per diagram type,
     loaded only when a document has a diagram), `katex/` (ESM, CSS, woff2 fonts; loaded
     only when a document has math), `purify.min.js`, `highlight.css`.
     It also regenerates `THIRD_PARTY_NOTICES.md`; CI fails if either is out of date.

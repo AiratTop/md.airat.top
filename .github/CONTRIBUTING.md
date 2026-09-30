@@ -12,7 +12,7 @@ Thank you for your interest in improving the Markdown Live Preview app at md.air
 
 - Read the repository `README.md` to understand the project goals and constraints.
 - Keep changes focused. If you have multiple unrelated ideas, open separate pull requests.
-- The editor is static with no build step; share links are served by a Cloudflare Worker with a D1 database (`src/`). Keep dependencies minimal and avoid adding external services or trackers.
+- The editor is static and there is no build step at deploy time: client libraries are prebuilt into `public_html/vendor/` by `npm run vendor` and committed. Share links are served by a Cloudflare Worker with a D1 database (`src/`). Keep dependencies minimal and avoid adding external services or trackers.
 - Read `AGENTS.md` for the invariants around share links (sanitising, no inline script, no URL leaks).
 
 ## Development Workflow
