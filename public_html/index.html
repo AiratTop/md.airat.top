@@ -7,11 +7,11 @@
     <title>md.airat.top — Markdown Live Preview</title>
     <meta
       name="description"
-      content="Local markdown live preview with sync scroll, copy, and reset. Private, fast, and fully local."
+      content="Markdown live preview in your browser, with sync scroll and dark mode. Private and local, plus temporary share links that delete themselves after 24 hours."
     />
     <meta
       name="keywords"
-      content="markdown, markdown preview, live preview, md, editor, sync scroll, dark mode, airattop"
+      content="markdown, markdown preview, live preview, md, editor, share markdown, markdown pastebin, temporary link, sync scroll, dark mode, airattop"
     />
     <meta name="author" content="AiratTop" />
 
@@ -21,7 +21,7 @@
     <meta property="og:title" content="Markdown Live Preview" />
     <meta
       property="og:description"
-      content="Local markdown live preview with sync scroll, copy, and reset. Private, fast, and fully local."
+      content="Markdown live preview in your browser, with sync scroll and dark mode. Private and local, plus temporary share links that delete themselves after 24 hours."
     />
     <meta property="og:image" content="https://md.airat.top/canvas.png" />
 
@@ -30,9 +30,9 @@
     <meta property="twitter:title" content="Markdown Live Preview" />
     <meta
       property="twitter:description"
-      content="Local markdown live preview with sync scroll, copy, and reset."
+      content="Markdown live preview in your browser, plus temporary share links that delete themselves after 24 hours."
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="/styles.css" />
 
     <meta name="msvalidate.01" content="A4ADBC8E0D3C862E117640B06AC788E3" />
     <meta name="google-site-verification" content="zuHpP1sB8u4uv7gVtMj2RNaGCoxq2lGMYENOCMovy1Y" />
@@ -44,14 +44,9 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="icon" href="/favicon.ico">
     <link rel="manifest" href="/site.webmanifest">
-    <!-- GoogleAnalytics counter -->
+    <!-- GoogleAnalytics counter (config in analytics.js: the CSP allows no inline script) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-CVEGGNPJXK"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-CVEGGNPJXK');
-    </script>
+    <script src="/analytics.js"></script>
     <!-- /GoogleAnalytics counter -->
   </head>
   <body>
@@ -61,12 +56,13 @@
           <div class="logo" aria-hidden="true">md</div>
           <div>
             <h1>Markdown Live Preview</h1>
-            <p>Private, fast, and fully local.</p>
+            <p>Private and local. Share a link for 24 hours.</p>
           </div>
         </div>
         <div class="controls" role="group" aria-label="Preview controls">
           <button class="btn" id="resetBtn" type="button">Reset</button>
           <button class="btn btn--ghost" id="copyBtn" type="button">Copy</button>
+          <button class="btn" id="shareBtn" type="button">Share</button>
           <label class="toggle">
             <input id="syncScroll" type="checkbox" checked />
             <span>Sync Scroll</span>
@@ -110,6 +106,41 @@
 
       <div class="status" id="status" aria-live="polite"></div>
 
+      <dialog class="dialog" id="shareDialog" aria-labelledby="shareHeading">
+        <div class="dialog__body" id="shareConfirm">
+          <h2 id="shareHeading">Share as a temporary link</h2>
+          <p>
+            The text is uploaded to md.airat.top, and
+            <strong>anyone with the link can read it</strong>.
+          </p>
+          <p>The link is <strong>deleted automatically after 24 hours</strong>.</p>
+          <p class="dialog__error" id="shareError" role="alert" hidden></p>
+          <div class="dialog__actions">
+            <button class="btn btn--ghost" type="button" data-close>Cancel</button>
+            <button class="btn" type="button" id="shareCreate">Create link</button>
+          </div>
+        </div>
+        <div class="dialog__body" id="shareResult" hidden>
+          <h2>Link created</h2>
+          <div class="share-link">
+            <input id="shareUrl" type="text" readonly aria-label="Share link" />
+            <button class="btn" type="button" id="shareCopy">Copy</button>
+          </div>
+          <p class="dialog__note">Deleted automatically on <strong id="shareExpiry"></strong>.</p>
+          <p class="dialog__links">
+            <a id="shareOpen" target="_blank" rel="noopener">Open</a>
+            ·
+            <a id="shareRaw" target="_blank" rel="noopener">Raw .md</a>
+            ·
+            <a id="shareJson" target="_blank" rel="noopener">JSON</a>
+          </p>
+          <div class="dialog__actions">
+            <button class="btn btn--ghost btn--danger" type="button" id="shareDelete">Delete now</button>
+            <button class="btn" type="button" data-close>Done</button>
+          </div>
+        </div>
+      </dialog>
+
       <footer class="doc-footer">
         <p>
           © 2026
@@ -126,7 +157,10 @@
       </footer>
     </div>
 
-    <script src="vendor/marked.min.js"></script>
-    <script src="app.js"></script>
+    <script src="/vendor/marked.min.js"></script>
+    <script src="/vendor/purify.min.js"></script>
+    <script src="/render.js"></script>
+    <script src="/common.js"></script>
+    <script src="/app.js"></script>
   </body>
 </html>

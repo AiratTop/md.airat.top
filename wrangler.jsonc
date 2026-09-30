@@ -1,8 +1,54 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "md-airat",
+  "main": "src/index.js",
   "compatibility_date": "2026-08-20",
   "workers_dev": false,
+  "observability": { "enabled": true },
+
+  "vars": {
+    "SITE_HOST": "md.airat.top"
+  },
+
+  // The editor is still static and lives in `public_html`, but the Worker sees every
+  // request first: `/{id}`, `/{id}.md` and `/{id}.json` are not files, and the response
+  // headers (CSP on the pages, `noindex` on everything but `/`) are set in one place
+  // rather than split between the Worker and a `_headers` file.
+  // `html_handling: "none"` stops the asset server from answering `/view.html` with a 307
+  // to `/view` when the Worker asks it for the shared-document shell.
   "assets": {
-    "directory": "./public_html"
+    "directory": "./public_html",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "md-airat",
+      "database_id": "baec86ab-86fb-40e1-9205-db23ab0a9cde",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  /*
+   * Flood protection for creating shares, per caller. A Durable Object rather than the
+   * rate limit binding for the reason measured in secret.airat.top: the binding lets a
+   * burst through before its count propagates, and a burst is what fills a database.
+   * See src/rate-limiter.js.
+   */
+  "durable_objects": {
+    "bindings": [{ "name": "RATE_LIMITER", "class_name": "RateLimiter" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RateLimiter"] }],
+
+  // Expiry is enforced on every read, so a share is never served past its deadline even
+  // if this never fires. The cron is what stops expired rows accumulating in D1.
+  "triggers": {
+    "crons": ["0 * * * *"]
   }
+
+  // No `routes` block: the custom domain is attached in the Cloudflare dashboard, as in
+  // every other project here, so the CI token needs no zone-level write access.
 }
