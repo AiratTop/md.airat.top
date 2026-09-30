@@ -1,3 +1,6 @@
+// Every control is looked up here, before any markdown is rendered, and the dialog's
+// controls inside the dialog itself: an element in the document that shares an id with
+// one of them must never be the one that gets the handler.
 const textarea = document.getElementById("markdownInput");
 const preview = document.getElementById("preview");
 const resetBtn = document.getElementById("resetBtn");
@@ -8,6 +11,22 @@ const darkToggle = document.getElementById("darkMode");
 const splitPane = document.getElementById("splitPane");
 const dragHandle = document.getElementById("dragHandle");
 const shareDialog = document.getElementById("shareDialog");
+const inDialog = (id) => shareDialog.querySelector(`#${id}`);
+const shareConfirm = inDialog("shareConfirm");
+const shareResult = inDialog("shareResult");
+const shareError = inDialog("shareError");
+const shareCreate = inDialog("shareCreate");
+const shareUrl = inDialog("shareUrl");
+const shareCopy = inDialog("shareCopy");
+const shareExpiry = inDialog("shareExpiry");
+const shareOpen = inDialog("shareOpen");
+const shareRaw = inDialog("shareRaw");
+const shareJson = inDialog("shareJson");
+const shareDelete = inDialog("shareDelete");
+const shareNew = inDialog("shareNew");
+const shareReused = inDialog("shareReused");
+const shareTokenNote = inDialog("shareTokenNote");
+const shareResultHeading = inDialog("shareResultHeading");
 
 const SAMPLE = `# Markdown Live Preview
 
@@ -35,10 +54,15 @@ console.log(greet("md.airat.top"));
 [Project repo](https://github.com/AiratTop/md.airat.top)
 `;
 
+let storageWarned = false;
+
 const updatePreview = () => {
   const markdown = textarea.value;
   preview.innerHTML = renderMarkdown(markdown);
-  setStored(STORAGE_KEYS.content, markdown);
+  if (!setStored(STORAGE_KEYS.content, markdown) && !storageWarned) {
+    storageWarned = true;
+    showStatus("Browser storage is full or blocked: this draft will not survive a reload", 6000);
+  }
 };
 
 let isSyncing = false;
@@ -64,7 +88,8 @@ const setContent = (value) => {
   }
 };
 
-const storedContent = getStored(STORAGE_KEYS.content, "");
+// null means nothing was ever saved; an empty string is a draft the user emptied.
+const storedContent = getStored(STORAGE_KEYS.content, null);
 const storedSplit = getStored(STORAGE_KEYS.split, "");
 const storedSync = getStored(STORAGE_KEYS.sync, "true");
 
@@ -73,7 +98,7 @@ syncToggle.checked = storedSync !== "false";
 if (storedSplit) {
   splitPane.style.setProperty("--split-left", storedSplit);
 }
-setContent(storedContent.trim() ? storedContent : SAMPLE);
+setContent(storedContent === null ? SAMPLE : storedContent);
 
 textarea.addEventListener("input", () => {
   updatePreview();
@@ -95,6 +120,10 @@ preview.addEventListener("scroll", () => {
 });
 
 resetBtn.addEventListener("click", () => {
+  const draft = textarea.value;
+  if (draft.trim() && draft !== SAMPLE && !confirm("Replace your text with the sample? Your current text will be lost.")) {
+    return;
+  }
   setContent(SAMPLE);
   showStatus("Reset to sample markdown");
 });
@@ -162,17 +191,6 @@ dragHandle.addEventListener("pointercancel", stopDrag);
 // Sharing. The editor never uploads anything on its own; this is the one path that
 // does, and only after the author confirms in the dialog what a share link means.
 const MAX_SHARE_BYTES = 256 * 1024; // MAX_CONTENT_BYTES in src/limits.js
-const shareConfirm = document.getElementById("shareConfirm");
-const shareResult = document.getElementById("shareResult");
-const shareError = document.getElementById("shareError");
-const shareCreate = document.getElementById("shareCreate");
-const shareUrl = document.getElementById("shareUrl");
-const shareCopy = document.getElementById("shareCopy");
-const shareExpiry = document.getElementById("shareExpiry");
-const shareOpen = document.getElementById("shareOpen");
-const shareRaw = document.getElementById("shareRaw");
-const shareJson = document.getElementById("shareJson");
-const shareDelete = document.getElementById("shareDelete");
 let currentShare = null;
 
 const showShareError = (message) => {
@@ -192,19 +210,74 @@ const flashLabel = (button, label) => {
   }, 1600);
 };
 
-shareBtn.addEventListener("click", () => {
-  if (!textarea.value.trim()) {
-    showStatus("Nothing to share yet");
-    return;
-  }
+const showConfirm = () => {
   showShareError("");
   shareConfirm.hidden = false;
   shareResult.hidden = true;
-  shareDialog.showModal();
   shareCreate.focus();
+};
+
+const showResult = (share, { reused = false, tokenStored = true } = {}) => {
+  currentShare = share;
+  shareUrl.value = share.url;
+  shareOpen.href = share.url;
+  shareRaw.href = share.markdownUrl;
+  shareJson.href = share.jsonUrl;
+  shareExpiry.textContent = `${formatDateTime(share.expiresAt)} (${formatRemaining(share.expiresAt)})`;
+  shareResultHeading.textContent = reused ? "Already shared" : "Link created";
+  shareReused.hidden = !reused;
+  shareNew.hidden = !reused;
+  shareTokenNote.hidden = tokenStored;
+  shareDelete.disabled = false;
+  shareConfirm.hidden = true;
+  shareResult.hidden = false;
+  shareUrl.focus();
+  shareUrl.select();
+};
+
+// A live link this browser already made for exactly this text. Checked against the
+// server as well, because it may have been deleted from another tab.
+const findExistingShare = async (content) => {
+  const existing = findShareByHash(await hashText(content));
+  if (!existing) {
+    return null;
+  }
+  try {
+    const response = await fetch(`/${existing.id}.md`, { method: "HEAD" });
+    if (response.ok) {
+      return existing;
+    }
+    if (response.status === 404) {
+      forgetShareToken(existing.id);
+    }
+  } catch (error) {
+    // Offline: fall through to a fresh share, which will report the network error.
+  }
+  return null;
+};
+
+shareBtn.addEventListener("click", async () => {
+  const content = textarea.value;
+  if (!content.trim()) {
+    showStatus("Nothing to share yet");
+    return;
+  }
+  const existing = await findExistingShare(content).catch(() => null);
+  shareDialog.showModal();
+  if (existing) {
+    showResult(existing, { reused: true });
+  } else {
+    showConfirm();
+  }
 });
 
+shareNew.addEventListener("click", showConfirm);
+
 shareCreate.addEventListener("click", async () => {
+  // Only ever from the confirm step of an open dialog.
+  if (!shareDialog.open || shareConfirm.hidden) {
+    return;
+  }
   const content = textarea.value;
   if (new TextEncoder().encode(content).length > MAX_SHARE_BYTES) {
     showShareError(`This text is too long to share: the limit is ${MAX_SHARE_BYTES / 1024} KB.`);
@@ -225,19 +298,8 @@ shareCreate.addEventListener("click", async () => {
       showShareError(data.error || "Could not create the link. Try again.");
       return;
     }
-
-    saveShareToken(data.id, data.deleteToken, data.expiresAt);
-    currentShare = data;
-    shareUrl.value = data.url;
-    shareOpen.href = data.url;
-    shareRaw.href = data.markdownUrl;
-    shareJson.href = data.jsonUrl;
-    shareExpiry.textContent = `${formatDateTime(data.expiresAt)} (${formatRemaining(data.expiresAt)})`;
-    shareDelete.disabled = false;
-    shareConfirm.hidden = true;
-    shareResult.hidden = false;
-    shareUrl.focus();
-    shareUrl.select();
+    const tokenStored = saveShareToken(data, await hashText(content));
+    showResult(data, { tokenStored });
   } catch (error) {
     showShareError("Network error. Check your connection and try again.");
   } finally {
@@ -260,7 +322,9 @@ shareDelete.addEventListener("click", async () => {
   }
   shareDelete.disabled = true;
   try {
-    if (await deleteShare(currentShare.id)) {
+    // The token from memory: it is there even when storage refused to keep it.
+    if (await deleteShare(currentShare.id, currentShare.deleteToken)) {
+      forgetShareToken(currentShare.id);
       currentShare = null;
       shareDialog.close();
       showStatus("Link deleted");
