@@ -2,19 +2,12 @@ const textarea = document.getElementById("markdownInput");
 const preview = document.getElementById("preview");
 const resetBtn = document.getElementById("resetBtn");
 const copyBtn = document.getElementById("copyBtn");
+const shareBtn = document.getElementById("shareBtn");
 const syncToggle = document.getElementById("syncScroll");
 const darkToggle = document.getElementById("darkMode");
-const statusEl = document.getElementById("status");
 const splitPane = document.getElementById("splitPane");
 const dragHandle = document.getElementById("dragHandle");
-
-const STORAGE_KEYS = {
-  content: "md-preview-content",
-  theme: "md-preview-theme",
-  themeMode: "md-preview-theme-mode",
-  split: "md-preview-split",
-  sync: "md-preview-sync",
-};
+const shareDialog = document.getElementById("shareDialog");
 
 const SAMPLE = `# Markdown Live Preview
 
@@ -42,53 +35,9 @@ console.log(greet("md.airat.top"));
 [Project repo](https://github.com/AiratTop/md.airat.top)
 `;
 
-const getStored = (key, fallback) => {
-  try {
-    const value = localStorage.getItem(key);
-    return value === null ? fallback : value;
-  } catch (error) {
-    return fallback;
-  }
-};
-
-const setStored = (key, value) => {
-  try {
-    localStorage.setItem(key, value);
-  } catch (error) {
-    // Ignore storage errors (private mode, etc.)
-  }
-};
-
-const showStatus = (message) => {
-  statusEl.textContent = message;
-  statusEl.classList.add("is-visible");
-  clearTimeout(showStatus.timer);
-  showStatus.timer = setTimeout(() => {
-    statusEl.classList.remove("is-visible");
-  }, 1600);
-};
-
-const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-const normalizeTheme = (value) =>
-  value === "dark" || value === "light" || value === "system" ? value : "system";
-const resolveTheme = (value) =>
-  value === "system" ? (mediaQuery.matches ? "dark" : "light") : value;
-
-let themeMode = "system";
-let themePreference = "system";
-
-const applyTheme = (value, { persist = true } = {}) => {
-  const resolved = resolveTheme(value);
-  document.documentElement.dataset.theme = resolved;
-  darkToggle.checked = resolved === "dark";
-  if (persist) {
-    setStored(STORAGE_KEYS.theme, value);
-  }
-};
-
 const updatePreview = () => {
   const markdown = textarea.value;
-  preview.innerHTML = marked.parse(markdown);
+  preview.innerHTML = renderMarkdown(markdown);
   setStored(STORAGE_KEYS.content, markdown);
 };
 
@@ -115,27 +64,11 @@ const setContent = (value) => {
   }
 };
 
-marked.setOptions({
-  gfm: true,
-  breaks: true,
-  mangle: false,
-  headerIds: false,
-});
-
 const storedContent = getStored(STORAGE_KEYS.content, "");
-const storedTheme = getStored(STORAGE_KEYS.theme, "system");
-const storedThemeMode = getStored(STORAGE_KEYS.themeMode, "system");
 const storedSplit = getStored(STORAGE_KEYS.split, "");
 const storedSync = getStored(STORAGE_KEYS.sync, "true");
 
-themeMode = storedThemeMode === "manual" ? "manual" : "system";
-themePreference = normalizeTheme(storedTheme);
-if (themeMode !== "manual") {
-  themePreference = "system";
-  setStored(STORAGE_KEYS.theme, "system");
-}
-
-applyTheme(themePreference, { persist: false });
+initTheme(darkToggle);
 syncToggle.checked = storedSync !== "false";
 if (storedSplit) {
   splitPane.style.setProperty("--split-left", storedSplit);
@@ -167,26 +100,12 @@ resetBtn.addEventListener("click", () => {
 });
 
 copyBtn.addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(textarea.value);
+  if (await copyText(textarea.value)) {
     showStatus("Markdown copied to clipboard");
-  } catch (error) {
+  } else {
     textarea.select();
     document.execCommand("copy");
     showStatus("Markdown copied");
-  }
-});
-
-darkToggle.addEventListener("change", () => {
-  themeMode = "manual";
-  setStored(STORAGE_KEYS.themeMode, themeMode);
-  themePreference = darkToggle.checked ? "dark" : "light";
-  applyTheme(themePreference);
-});
-
-mediaQuery.addEventListener("change", () => {
-  if (themeMode === "system") {
-    applyTheme("system", { persist: false });
   }
 });
 
@@ -239,3 +158,127 @@ dragHandle.addEventListener("pointermove", (event) => {
 
 dragHandle.addEventListener("pointerup", stopDrag);
 dragHandle.addEventListener("pointercancel", stopDrag);
+
+// Sharing. The editor never uploads anything on its own; this is the one path that
+// does, and only after the author confirms in the dialog what a share link means.
+const MAX_SHARE_BYTES = 256 * 1024; // MAX_CONTENT_BYTES in src/limits.js
+const shareConfirm = document.getElementById("shareConfirm");
+const shareResult = document.getElementById("shareResult");
+const shareError = document.getElementById("shareError");
+const shareCreate = document.getElementById("shareCreate");
+const shareUrl = document.getElementById("shareUrl");
+const shareCopy = document.getElementById("shareCopy");
+const shareExpiry = document.getElementById("shareExpiry");
+const shareOpen = document.getElementById("shareOpen");
+const shareRaw = document.getElementById("shareRaw");
+const shareJson = document.getElementById("shareJson");
+const shareDelete = document.getElementById("shareDelete");
+let currentShare = null;
+
+const showShareError = (message) => {
+  shareError.textContent = message;
+  shareError.hidden = !message;
+};
+
+// The status toast sits under the modal's backdrop, so feedback inside the dialog goes
+// on the button that was pressed.
+const flashLabel = (button, label) => {
+  const original = button.dataset.label || button.textContent;
+  button.dataset.label = original;
+  button.textContent = label;
+  clearTimeout(button.flashTimer);
+  button.flashTimer = setTimeout(() => {
+    button.textContent = original;
+  }, 1600);
+};
+
+shareBtn.addEventListener("click", () => {
+  if (!textarea.value.trim()) {
+    showStatus("Nothing to share yet");
+    return;
+  }
+  showShareError("");
+  shareConfirm.hidden = false;
+  shareResult.hidden = true;
+  shareDialog.showModal();
+  shareCreate.focus();
+});
+
+shareCreate.addEventListener("click", async () => {
+  const content = textarea.value;
+  if (new TextEncoder().encode(content).length > MAX_SHARE_BYTES) {
+    showShareError(`This text is too long to share: the limit is ${MAX_SHARE_BYTES / 1024} KB.`);
+    return;
+  }
+
+  showShareError("");
+  shareCreate.disabled = true;
+  shareCreate.textContent = "Creating…";
+  try {
+    const response = await fetch("/api/shares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showShareError(data.error || "Could not create the link. Try again.");
+      return;
+    }
+
+    saveShareToken(data.id, data.deleteToken, data.expiresAt);
+    currentShare = data;
+    shareUrl.value = data.url;
+    shareOpen.href = data.url;
+    shareRaw.href = data.markdownUrl;
+    shareJson.href = data.jsonUrl;
+    shareExpiry.textContent = `${formatDateTime(data.expiresAt)} (${formatRemaining(data.expiresAt)})`;
+    shareDelete.disabled = false;
+    shareConfirm.hidden = true;
+    shareResult.hidden = false;
+    shareUrl.focus();
+    shareUrl.select();
+  } catch (error) {
+    showShareError("Network error. Check your connection and try again.");
+  } finally {
+    shareCreate.disabled = false;
+    shareCreate.textContent = "Create link";
+  }
+});
+
+shareCopy.addEventListener("click", async () => {
+  if (!(await copyText(shareUrl.value))) {
+    shareUrl.select();
+    document.execCommand("copy");
+  }
+  flashLabel(shareCopy, "Copied");
+});
+
+shareDelete.addEventListener("click", async () => {
+  if (!currentShare || !confirm("Delete this link now? It will stop working for everyone.")) {
+    return;
+  }
+  shareDelete.disabled = true;
+  try {
+    if (await deleteShare(currentShare.id)) {
+      currentShare = null;
+      shareDialog.close();
+      showStatus("Link deleted");
+      return;
+    }
+  } catch (error) {
+    // Reported below.
+  }
+  shareDelete.disabled = false;
+  flashLabel(shareDelete, "Could not delete");
+});
+
+shareDialog.querySelectorAll("[data-close]").forEach((button) => {
+  button.addEventListener("click", () => shareDialog.close());
+});
+
+shareDialog.addEventListener("click", (event) => {
+  if (event.target === shareDialog) {
+    shareDialog.close();
+  }
+});

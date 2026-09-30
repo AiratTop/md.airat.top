@@ -1,3 +1,24 @@
+# Only the editor is indexable. Shared documents (/{id}, /{id}.md, /{id}.json) live for
+# 24 hours and carry X-Robots-Tag: noindex as well; the files below stay allowed so a
+# crawler can render the one page that is meant to be found.
 User-agent: *
-Allow: /
-Disallow: /cdn-cgi/
+Allow: /$
+Allow: /index.html
+Allow: /styles.css
+Allow: /app.js
+Allow: /common.js
+Allow: /render.js
+Allow: /analytics.js
+Allow: /vendor/
+Allow: /site.webmanifest
+Allow: /llms.txt
+Allow: /canvas.png
+Allow: /favicon.ico
+Allow: /favicon-16x16.png
+Allow: /favicon-32x32.png
+Allow: /apple-touch-icon.png
+Allow: /android-chrome-192x192.png
+Allow: /android-chrome-512x512.png
+Disallow: /
+
+Sitemap: https://md.airat.top/sitemap.xml
