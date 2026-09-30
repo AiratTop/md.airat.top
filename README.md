@@ -2,8 +2,10 @@
 
 [![md.airat.top](https://raw.githubusercontent.com/AiratTop/md.airat.top/main/public_html/canvas.png)](https://md.airat.top/)
 
-A private markdown live preview with a split editor and preview, plus temporary share
-links that delete themselves after 24 hours. Runs on Cloudflare Workers with a D1 database.
+A private markdown live preview with a split editor and preview: GitHub-flavored markdown
+with code highlighting, KaTeX math and Mermaid diagrams, export to HTML and PDF, and
+temporary share links that delete themselves after 24 hours. Runs on Cloudflare Workers
+with a D1 database.
 
 - Live site: https://md.airat.top
 - Redirect: https://markdown.airat.top
@@ -114,7 +116,7 @@ The original source code, configuration, and documentation in this repository ar
 the [Apache License 2.0](LICENSE), with copyright details in [NOTICE](NOTICE).
 
 Everything in `public_html/vendor/` is third-party software (markdown-it and its plugins,
-highlight.js, js-yaml, mermaid, DOMPurify), built from npm by `npm run vendor`,
+highlight.js, js-yaml, KaTeX, mermaid, DOMPurify), built from npm by `npm run vendor`,
 distributed under their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ---
