@@ -222,3 +222,97 @@ test("an emptied draft stays empty after a reload", async () => {
   assert.equal(await page.inputValue("#markdownInput"), "");
   await context.close();
 });
+
+test("extended markdown renders: front matter, sub/sup, footnotes, emoji, highlighting, marks", async () => {
+  const draft = [
+    "---",
+    "title: Feature tour",
+    'tags: ["a", "b"]',
+    "---",
+    "",
+    "19^th^ and H~2~O, ==marked== and ++inserted++.",
+    "",
+    "Footnote[^one] and inline^[inline note].",
+    "",
+    "[^one]: The note.",
+    "",
+    ":wink: and :-)",
+    "",
+    "*[HTML]: Hyper Text Markup Language",
+    "HTML here.",
+    "",
+    "Term",
+    ":   Definition",
+    "",
+    "```javascript",
+    "const x = 1; // note",
+    "```",
+    "",
+    "```not-a-language",
+    "plain",
+    "```",
+  ].join("\n");
+  const { page, context } = await openPage("/", { draft });
+  const found = await page.evaluate(() => {
+    const q = (selector) => document.querySelector(`#preview ${selector}`);
+    const ref = q(".footnote-ref a");
+    return {
+      frontMatter: [...document.querySelectorAll("#preview table.front-matter th")].map((th) => th.textContent).join(","),
+      tags: q("table.front-matter td:last-child")?.textContent,
+      sup: q("sup:not(.footnote-ref)")?.textContent,
+      sub: q("sub")?.textContent,
+      mark: q("mark")?.textContent,
+      ins: q("ins")?.textContent,
+      footnotes: document.querySelectorAll("#preview .footnotes li").length,
+      footnoteTargetExists: Boolean(ref && document.getElementById(ref.getAttribute("href").slice(1))),
+      footnoteSameTab: ref?.getAttribute("target"),
+      emoji: q("p:has(+ p abbr), p")?.textContent,
+      abbr: q("abbr")?.getAttribute("title"),
+      dt: q("dt")?.textContent,
+      highlighted: document.querySelectorAll("#preview code.hljs.language-javascript span").length,
+      plainFence: q("pre code:not(.hljs)")?.textContent.trim(),
+    };
+  });
+  assert.equal(found.frontMatter, "title,tags");
+  assert.equal(found.tags, "a, b");
+  assert.equal(found.sup, "th");
+  assert.equal(found.sub, "2");
+  assert.equal(found.mark, "marked");
+  assert.equal(found.ins, "inserted");
+  assert.equal(found.footnotes, 2);
+  assert.equal(found.footnoteTargetExists, true, "a footnote link must reach its note after ids are prefixed");
+  assert.equal(found.footnoteSameTab, null);
+  assert.ok(await page.locator("#preview", { hasText: "😉" }).count());
+  assert.equal(found.abbr, "Hyper Text Markup Language");
+  assert.equal(found.dt, "Term");
+  assert.ok(found.highlighted > 0, "javascript was not highlighted");
+  assert.equal(found.plainFence, "plain");
+  await context.close();
+});
+
+test("mermaid draws a valid diagram, marks an invalid one, and its SVG is sanitised", async () => {
+  const draft = [
+    "```mermaid",
+    "graph TD",
+    "  A[Start] --> B[End]",
+    "```",
+    "",
+    "```mermaid",
+    "this is not a diagram",
+    "```",
+  ].join("\n");
+  const { page, context } = await openPage("/", { draft });
+  await page.waitForSelector("#preview .mermaid-diagram svg", { timeout: 10_000 });
+  await page.waitForSelector("#preview pre.mermaid-source.is-invalid", { timeout: 10_000 });
+  assert.match(await page.textContent("#preview .mermaid-diagram"), /End/);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).display), "block");
+  // Labels are SVG text: a <foreignObject> would carry HTML past the SVG sanitiser.
+  assert.equal(await page.locator("#preview .mermaid-diagram foreignObject").count(), 0);
+  const handlers = await page.evaluate(() =>
+    [...document.querySelectorAll("#preview .mermaid-diagram *")].filter((node) =>
+      [...node.attributes].some((attribute) => attribute.name.startsWith("on"))
+    ).length
+  );
+  assert.equal(handlers, 0);
+  await context.close();
+});
