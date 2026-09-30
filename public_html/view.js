@@ -28,15 +28,16 @@ const updateExpiry = () => {
     docMeta.textContent = "This link has expired and will be deleted shortly";
     return;
   }
-  docMeta.textContent = `Shared markdown · deleted automatically ${formatRemaining(share.expiresAt)}`;
+  docMeta.textContent = `Deleted automatically ${formatRemaining(share.expiresAt)}`;
   docMeta.title = `Deleted at ${formatDateTime(share.expiresAt)}`;
 };
 
 if (!share) {
   showGone();
 } else {
-  // The title comes from the server, which derived it the same way for link previews.
-  docTitle.textContent = document.title.replace(/ — md\.airat\.top$/, "");
+  // The document's own title stays in <title> and the link preview; showing it in the
+  // header as well would repeat the heading the document usually opens with.
+  docTitle.textContent = "Shared markdown";
   preview.innerHTML = renderMarkdown(share.content);
   rawLink.href = share.markdownUrl;
   deleteBtn.hidden = !readShareTokens()[share.id];
