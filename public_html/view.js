@@ -12,6 +12,8 @@ const copyBtn = document.getElementById("copyBtn");
 const rawLink = document.getElementById("rawLink");
 const editBtn = document.getElementById("editBtn");
 const deleteBtn = document.getElementById("deleteBtn");
+const exportBtn = document.getElementById("exportBtn");
+const exportMenu = document.getElementById("exportMenu");
 
 initTheme(document.getElementById("darkMode"));
 
@@ -50,6 +52,7 @@ if (!share) {
     attributeFilter: ["data-theme"],
   });
   rawLink.href = share.markdownUrl;
+  setupExport({ button: exportBtn, menu: exportMenu, getMarkdown: () => share.content });
   deleteBtn.hidden = !readShareTokens()[share.id];
   docControls.hidden = false;
   docPane.hidden = false;

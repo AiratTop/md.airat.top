@@ -159,7 +159,7 @@ describe("the editor", () => {
   });
 
   it("finds every element app.js and view.js look up", async () => {
-    for (const [script, page] of [["/app.js", "/"], ["/view.js", `/${newId()}`], ["/common.js", "/"]]) {
+    for (const [script, page] of [["/app.js", "/"], ["/view.js", `/${newId()}`], ["/common.js", "/"], ["/export.js", "/"], ["/export.js", `/${newId()}`]]) {
       const source = await (await call(script)).text();
       const html = await (await call(page)).text();
       for (const [, id] of source.matchAll(/(?:getElementById|inDialog)\("([^"]+)"\)/g)) {

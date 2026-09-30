@@ -166,13 +166,14 @@ const loadMermaid = () => {
   return mermaidLoading;
 };
 
-const renderDiagrams = async (container) => {
+// `theme` forces "default" (light) or "dark"; by default diagrams follow the page.
+const renderDiagrams = async (container, { theme: forcedTheme } = {}) => {
   const blocks = [...container.querySelectorAll("pre.mermaid-source")];
   if (!blocks.length) {
     return;
   }
   const mermaid = await loadMermaid();
-  const theme = document.documentElement.dataset.theme === "dark" ? "dark" : "default";
+  const theme = forcedTheme ?? (document.documentElement.dataset.theme === "dark" ? "dark" : "default");
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: "strict",

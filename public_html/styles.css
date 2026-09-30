@@ -31,7 +31,8 @@
   }
 }
 
-html[data-theme="light"] {
+html[data-theme="light"],
+.export-document {
   color-scheme: light;
   --bg-1: #f2f6fb;
   --bg-2: #e7eef8;
@@ -105,6 +106,10 @@ body::before {
 }
 
 .topbar {
+  /* Above the panes: both animate in with a transform, which makes each its own
+     stacking context, and the Export menu must open over the document, not under it. */
+  position: relative;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -865,6 +870,134 @@ html[data-theme="dark"] .preview pre {
 
   .topbar {
     align-items: flex-start;
+  }
+}
+
+/* Export menu */
+.menu-wrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: rise 0.18s ease both;
+}
+
+.menu [role="menuitem"] {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu [role="menuitem"] small {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.menu [role="menuitem"]:hover,
+.menu [role="menuitem"]:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.menu a[role="menuitem"] {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 9px 9px;
+}
+
+/* Export: one light document layout, used by the downloaded HTML file and by print. */
+#exportArea {
+  display: none;
+}
+
+.export-document {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 48px 32px 64px;
+  overflow: visible;
+  background: #ffffff;
+  color: var(--text);
+}
+
+body.export-page {
+  min-height: 0;
+  background: #ffffff;
+}
+
+body.export-page::before {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  /* The page margins take the canvas colour of the root's colour scheme, which is dark
+     in the dark theme whatever the background says. */
+  html,
+  body {
+    min-height: 0;
+    color-scheme: light !important;
+    background: #ffffff !important;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  body.is-printing > *:not(#exportArea) {
+    display: none !important;
+  }
+
+  body.is-printing #exportArea {
+    display: block;
+    max-width: none;
+    padding: 0;
+  }
+
+  .export-document pre,
+  .export-document table,
+  .export-document blockquote,
+  .export-document .mermaid-diagram,
+  .export-document .katex-display {
+    break-inside: avoid;
+  }
+
+  .export-document h1,
+  .export-document h2,
+  .export-document h3 {
+    break-after: avoid;
+  }
+
+  .export-document pre,
+  .export-document .preview pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 }
 
