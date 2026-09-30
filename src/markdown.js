@@ -25,6 +25,14 @@ import { load as loadYaml } from "js-yaml";
 export const escapeHtml = (value) =>
   String(value).replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 
+// Bounds on the front-matter table (see frontMatterTable): far past any real front matter,
+// far short of what YAML aliases can expand into.
+const FRONT_MATTER_MAX_DEPTH = 32;
+const FRONT_MATTER_MAX_VALUES = 10_000;
+const FRONT_MATTER_MAX_CHARACTERS = 100_000;
+
+class FrontMatterTooLarge extends Error {}
+
 export function createMarkdown() {
   const md = new MarkdownIt({
     html: true, // raw HTML is allowed in; the sanitiser of each renderer decides what survives
@@ -69,17 +77,54 @@ export function createMarkdown() {
 
   // Front matter shows as a one-row table, the way GitHub shows it. Anything that is not a
   // plain mapping — a list, a scalar, YAML that does not parse — shows as the YAML itself.
-  const frontMatterCell = (value) => {
-    if (value === null || value === undefined) return "";
-    if (Array.isArray(value)) return value.map(frontMatterCell).join(", ");
-    if (value instanceof Date) return value.toISOString().slice(0, 10);
-    if (typeof value === "object") return escapeHtml(JSON.stringify(value));
-    return escapeHtml(value);
+  //
+  // The YAML is someone else's, and YAML aliases make it a graph rather than a tree: an
+  // alias can refer to its own ancestor (`a: &a [*a]`), and a few lines of nested aliases
+  // expand into millions of values. So the table is written with a budget — depth, values
+  // and characters — and a cycle or an exhausted budget shows the YAML as written instead.
+  const frontMatterTable = (data) => {
+    let values = 0;
+    let characters = 0;
+    const ancestors = new Set();
+    const spend = (text) => {
+      characters += text.length;
+      if (characters > FRONT_MATTER_MAX_CHARACTERS) throw new FrontMatterTooLarge();
+      return text;
+    };
+    // Nested values are written as JSON; the cell's own list is written comma-separated.
+    const write = (value, depth, json) => {
+      if (++values > FRONT_MATTER_MAX_VALUES || depth > FRONT_MATTER_MAX_DEPTH) throw new FrontMatterTooLarge();
+      if (value === null || value === undefined) return spend(json ? "null" : "");
+      if (value instanceof Date) {
+        const date = Number.isNaN(value.getTime()) ? "" : value.toISOString();
+        return spend(json ? JSON.stringify(date) : date.slice(0, 10));
+      }
+      if (typeof value !== "object") return spend(json ? JSON.stringify(value) ?? "null" : String(value));
+      if (ancestors.has(value)) throw new FrontMatterTooLarge();
+      ancestors.add(value);
+      let text;
+      if (Array.isArray(value)) {
+        const items = value.map((item) => write(item, depth + 1, json));
+        text = json ? `[${items.join(",")}]` : items.join(", ");
+      } else {
+        const entries = Object.keys(value).map((key) => `${spend(JSON.stringify(key))}:${write(value[key], depth + 1, true)}`);
+        text = `{${entries.join(",")}}`;
+      }
+      ancestors.delete(value);
+      return text;
+    };
+    const keys = Object.keys(data);
+    const cells = keys.map((key) => write(data[key], 0, false));
+    return (
+      `<table class="front-matter"><thead><tr>${keys.map((key) => `<th>${escapeHtml(key)}</th>`).join("")}</tr></thead>` +
+      `<tbody><tr>${cells.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr></tbody></table>\n`
+    );
   };
 
   md.renderer.rules.front_matter = (tokens, index) => {
     // The front-matter plugin stores the raw YAML in `meta`, typed for other tokens' use.
     const source = String(tokens[index].meta ?? "");
+    const asWritten = `<pre class="front-matter"><code>${escapeHtml(source)}</code></pre>\n`;
     let data = /** @type {any} */ (null);
     try {
       data = loadYaml(source);
@@ -87,14 +132,28 @@ export function createMarkdown() {
       data = null;
     }
     if (!data || typeof data !== "object" || Array.isArray(data) || !Object.keys(data).length) {
-      return `<pre class="front-matter"><code>${escapeHtml(source)}</code></pre>\n`;
+      return asWritten;
     }
-    const keys = Object.keys(data);
-    return (
-      `<table class="front-matter"><thead><tr>${keys.map((key) => `<th>${escapeHtml(key)}</th>`).join("")}</tr></thead>` +
-      `<tbody><tr>${keys.map((key) => `<td>${frontMatterCell(data[key])}</td>`).join("")}</tr></tbody></table>\n`
-    );
+    try {
+      return frontMatterTable(data);
+    } catch (error) {
+      if (error instanceof FrontMatterTooLarge) return asWritten;
+      throw error;
+    }
   };
+
+  // Table alignment (`:---:`) comes out of markdown-it as style="text-align:…", which both
+  // sanitisers strip along with every other style. It becomes the `align` attribute, which
+  // both keep and styles.css honours; any other style on a cell is dropped here.
+  for (const rule of ["th_open", "td_open"]) {
+    md.renderer.rules[rule] = (tokens, index, options, env, self) => {
+      const token = tokens[index];
+      const alignment = /^text-align:(left|center|right)$/.exec(String(token.attrGet("style") ?? ""));
+      if (token.attrs) token.attrs = token.attrs.filter(([name]) => name !== "style");
+      if (alignment) token.attrSet("align", alignment[1]);
+      return self.renderToken(tokens, index, options);
+    };
+  }
 
   // Mermaid fences become a placeholder that the browser replaces with the drawing; until
   // then, where there is no browser (/{id}.html), and if it does not parse, the source

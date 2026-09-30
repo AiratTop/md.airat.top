@@ -47,18 +47,20 @@ const loadSample = async () => {
 
 let storageWarned = false;
 let diagramTimer = null;
+let edited = false; // typed into since the page loaded
 
 const updatePreview = () => {
   const markdown = textarea.value;
+  // Saved first: a document the renderer chokes on must not cost the author their draft.
+  if (!setStored(STORAGE_KEYS.content, markdown) && !storageWarned) {
+    storageWarned = true;
+    showStatus("Browser storage is full or blocked: this draft will not survive a reload", 6000);
+  }
   preview.innerHTML = renderMarkdown(markdown);
   renderMath(preview);
   // Diagrams are drawn once typing pauses: mid-edit, a diagram rarely parses.
   clearTimeout(diagramTimer);
   diagramTimer = setTimeout(() => renderDiagrams(preview), 300);
-  if (!setStored(STORAGE_KEYS.content, markdown) && !storageWarned) {
-    storageWarned = true;
-    showStatus("Browser storage is full or blocked: this draft will not survive a reload", 6000);
-  }
 };
 
 let isSyncing = false;
@@ -96,18 +98,22 @@ new MutationObserver(() => updatePreview()).observe(document.documentElement, {
   attributeFilter: ["data-theme"],
 });
 syncToggle.checked = storedSync !== "false";
-if (storedSplit) {
-  splitPane.style.setProperty("--split-left", storedSplit);
-}
+
 if (storedContent === null) {
+  // The tour arrives over the network, and the editor is usable before it does: it goes
+  // in only if nobody has typed in the meantime, or it would replace what they wrote.
+  const starter = (text) => {
+    if (!edited) setContent(text);
+  };
   loadSample()
-    .then(setContent)
-    .catch(() => setContent("# Markdown Live Preview\n\nWrite on the left, see it on the right."));
+    .then(starter)
+    .catch(() => starter("# Markdown Live Preview\n\nWrite on the left, see it on the right."));
 } else {
   setContent(storedContent);
 }
 
 textarea.addEventListener("input", () => {
+  edited = true;
   updatePreview();
   if (syncToggle.checked) {
     syncScroll(textarea, preview);
@@ -157,19 +163,46 @@ syncToggle.addEventListener("change", () => {
   }
 });
 
+// The divider between the panes: dragged with a pointer, or focused and moved with the
+// arrow keys (Shift for bigger steps), Home and End. aria-valuenow is the editor's share
+// of the width, in percent.
 let isDragging = false;
 const MIN_PANE_WIDTH = 240;
+const KEY_STEP_PERCENT = 2;
+
+const setSplit = (percent, { store = true } = {}) => {
+  const width = splitPane.getBoundingClientRect().width;
+  const min = width > 2 * MIN_PANE_WIDTH ? (MIN_PANE_WIDTH / width) * 100 : 50;
+  const clamped = Math.max(min, Math.min(percent, 100 - min));
+  const value = `${clamped}%`;
+  splitPane.style.setProperty("--split-left", value);
+  dragHandle.setAttribute("aria-valuenow", String(Math.round(clamped)));
+  if (store) setStored(STORAGE_KEYS.split, value);
+};
+
+const currentSplit = () => parseFloat(splitPane.style.getPropertyValue("--split-left")) || 50;
 
 const updateSplit = (clientX) => {
   const rect = splitPane.getBoundingClientRect();
-  const offsetX = clientX - rect.left;
-  const maxLeft = rect.width - MIN_PANE_WIDTH;
-  const clamped = Math.max(MIN_PANE_WIDTH, Math.min(offsetX, maxLeft));
-  const percent = (clamped / rect.width) * 100;
-  const value = `${percent}%`;
-  splitPane.style.setProperty("--split-left", value);
-  setStored(STORAGE_KEYS.split, value);
+  setSplit(((clientX - rect.left) / rect.width) * 100);
 };
+
+setSplit(parseFloat(storedSplit) || 50, { store: false });
+
+dragHandle.addEventListener("keydown", (event) => {
+  const step = event.shiftKey ? KEY_STEP_PERCENT * 5 : KEY_STEP_PERCENT;
+  const target = {
+    ArrowLeft: currentSplit() - step,
+    ArrowRight: currentSplit() + step,
+    Home: 0,
+    End: 100,
+  }[event.key];
+  if (target === undefined) {
+    return;
+  }
+  event.preventDefault();
+  setSplit(target);
+});
 
 const stopDrag = (event) => {
   if (!isDragging) {

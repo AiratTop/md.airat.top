@@ -57,8 +57,8 @@ after(async () => {
  */
 const foreignRequests = [];
 
-async function openPage(path = "/", { blockStorage = false, draft } = {}) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+async function openPage(path = "/", { blockStorage = false, draft, scale = 1, beforeGoto } = {}) {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: scale });
   await context.route(/.*/, (route) => {
     const url = route.request().url();
     if (url.startsWith(BASE)) return route.continue();
@@ -91,6 +91,7 @@ async function openPage(path = "/", { blockStorage = false, draft } = {}) {
     if (request.method() === "POST" && request.url().endsWith("/api/shares")) posts.push(request);
   });
   page.on("dialog", (dialog) => dialog.accept());
+  await beforeGoto?.(page);
   await page.goto(BASE + path);
   return { page, posts, context };
 }
@@ -359,6 +360,85 @@ test("a first visit opens the tour from sample.md, and Reset brings it back", as
   await context.close();
 });
 
+test("text typed before the tour arrives is not replaced by it", async () => {
+  let releaseSample;
+  const sampleHeld = new Promise((resolve) => (releaseSample = resolve));
+  const { page, context } = await openPage("/", {
+    beforeGoto: (page) =>
+      page.route("**/sample.md", async (route) => {
+        await sampleHeld;
+        await route.continue();
+      }),
+  });
+  await page.fill("#markdownInput", "typed while the tour was loading");
+  releaseSample();
+  await page.waitForResponse("**/sample.md");
+  await page.waitForTimeout(300);
+  assert.equal(await page.inputValue("#markdownInput"), "typed while the tour was loading");
+  assert.equal(await page.evaluate(() => localStorage.getItem("md-preview-content")), "typed while the tour was loading");
+  await context.close();
+});
+
+test("front matter that refers to itself renders as YAML, and the draft is saved", async () => {
+  const { page, context } = await openPage("/", { draft: "" });
+  const text = "---\na: &a [*a]\nb: &b {c: *b}\n---\n\nhello";
+  await page.fill("#markdownInput", text);
+  assert.equal(await page.locator("#preview pre.front-matter").count(), 1);
+  assert.match(await page.textContent("#preview"), /hello/);
+  assert.equal(await page.evaluate(() => localStorage.getItem("md-preview-content")), text);
+  await context.close();
+});
+
+test("the sanitiser allows HTML only in markdown, and SVG only in diagrams", async () => {
+  const draft = [
+    '<svg><a href="https://example.com/"><text>svg link</text></a></svg>',
+    "",
+    "<math><mi>x</mi></math>",
+    "",
+    "```mermaid",
+    "graph TD",
+    "  A[Start] --> B[End]",
+    "```",
+  ].join("\n");
+  const { page, context } = await openPage("/", { draft });
+  await page.waitForSelector("#preview .mermaid-diagram svg", { timeout: 10_000 });
+  const found = await page.evaluate(() => ({
+    foreign: document.querySelectorAll("#preview > svg, #preview :not(.mermaid-diagram) > svg, #preview math").length,
+    notSvg: [...document.querySelectorAll("#preview .mermaid-diagram svg, #preview .mermaid-diagram svg *")].filter(
+      (node) => node.namespaceURI !== "http://www.w3.org/2000/svg"
+    ).length,
+  }));
+  assert.equal(found.foreign, 0, "<svg> or <math> from the markdown survived");
+  assert.equal(found.notSvg, 0, "a diagram carried a non-SVG element");
+  await context.close();
+});
+
+test("table columns keep their alignment", async () => {
+  const { page, context } = await openPage("/", { draft: "| L | C | R |\n| :- | :-: | -: |\n| x | y | z |" });
+  const aligned = await page.evaluate(() =>
+    [...document.querySelectorAll("#preview td")].map((cell) => getComputedStyle(cell).textAlign)
+  );
+  assert.deepEqual(aligned, ["left", "center", "right"]);
+  await context.close();
+});
+
+test("the panel divider moves with the keyboard", async () => {
+  const { page, context } = await openPage("/", { draft: "text" });
+  await page.focus("#dragHandle");
+  const before = Number(await page.getAttribute("#dragHandle", "aria-valuenow"));
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  const after = Number(await page.getAttribute("#dragHandle", "aria-valuenow"));
+  assert.equal(after, before - 4);
+  assert.equal(await page.evaluate(() => localStorage.getItem("md-preview-split")), await page.evaluate(() =>
+    document.getElementById("splitPane").style.getPropertyValue("--split-left")
+  ));
+  await page.keyboard.press("End");
+  const end = Number(await page.getAttribute("#dragHandle", "aria-valuenow"));
+  assert.ok(end < 100 && end > after, `End went to ${end}`);
+  await context.close();
+});
+
 /** Opens the Export menu and picks an item, returning the download it starts. */
 async function exportAs(page, kind) {
   await page.click("#exportBtn");
@@ -407,6 +487,30 @@ test("Export as HTML gives one light, script-free file that works offline", asyn
   assert.match(html, /<img src="data:image\/png;base64,/, "this site's images are embedded");
   assert.match(html, /<svg/);
   assert.match(html, /#ececff/i, "diagrams are drawn in the light theme");
+  await context.close();
+});
+
+test("Export as HTML makes links absolute and keeps the embedded image, even at 2x", async () => {
+  const draft = [
+    "# Portable",
+    "",
+    "[Root](/) [Readme](readme.md) [Down](#portable) [Mail](mailto:a@example.com)",
+    "",
+    '<img src="/favicon-32x32.png" srcset="/favicon-16x16.png 1x, /android-chrome-192x192.png 2x" alt="icon">',
+  ].join("\n");
+  const { page, context } = await openPage("/", { draft, scale: 2 });
+  const html = await downloadedText(await exportAs(page, "html"));
+  assert.match(html, new RegExp(`href="${BASE}/"`));
+  assert.match(html, new RegExp(`href="${BASE}/readme.md"`));
+  assert.match(html, /href="#user-content-portable"/);
+  assert.match(html, /href="mailto:a@example.com"/);
+  assert.doesNotMatch(html, /srcset/);
+
+  // Opened as a file would be: nothing to resolve against, on a 2x screen.
+  const file = await context.newPage();
+  await file.setContent(html);
+  const image = await file.evaluate(() => document.querySelector("img").currentSrc);
+  assert.match(image, /^data:image\/png;base64,/);
   await context.close();
 });
 

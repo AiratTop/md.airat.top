@@ -92,10 +92,34 @@ const toDataUrl = async (url) => {
   });
 };
 
-// A copy of the document whose images still work when the file is opened from disk:
-// this site's own images are embedded, and every other one gets an absolute URL.
+// A copy of the document whose links and images still work when the file is opened from
+// disk, where a relative URL would point into the file system: this site's own images are
+// embedded, every other URL becomes absolute, and in-page #links stay as they are.
+// srcset goes, and <picture> sources with it: the browser would pick one of those over the
+// src that was embedded, and on a high-density screen it does.
 const portableCopy = async (container) => {
   const copy = container.cloneNode(true);
+  const absolute = (value) => {
+    try {
+      return new URL(value, location.href).href;
+    } catch (error) {
+      return value;
+    }
+  };
+  for (const source of copy.querySelectorAll("picture source")) source.remove();
+  for (const element of copy.querySelectorAll("[srcset]")) {
+    element.removeAttribute("srcset");
+    element.removeAttribute("sizes");
+  }
+  for (const element of copy.querySelectorAll("[href]")) {
+    const href = element.getAttribute("href");
+    if (!href.startsWith("#")) element.setAttribute("href", absolute(href));
+  }
+  for (const element of copy.querySelectorAll("[src]:not(img), [poster]")) {
+    for (const name of ["src", "poster"]) {
+      if (element.hasAttribute(name)) element.setAttribute(name, absolute(element.getAttribute(name)));
+    }
+  }
   await Promise.all(
     [...copy.querySelectorAll("img[src]")].map(async (image) => {
       const url = new URL(image.getAttribute("src"), location.href);

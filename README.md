@@ -59,7 +59,7 @@ write to [mail@airat.top](mailto:mail@airat.top). Security issues: see [SECURITY
 ### API
 
 ```bash
-# Create a share (limit: 256 KB of UTF-8; 10 per minute and 200 per day per IPv4 address or IPv6 /64)
+# Create a share (limit: 256 KB of UTF-8; 30 per minute and 300 per day per IPv4 address or IPv6 /64)
 curl -s https://md.airat.top/api/shares \
   -H 'Content-Type: application/json' \
   -d '{"content":"# Hello\n\nShared from the command line."}'

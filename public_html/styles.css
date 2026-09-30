@@ -276,8 +276,14 @@ a.logo {
   opacity: 0.65;
 }
 
-.divider.is-active {
+.divider.is-active,
+.divider:focus-visible {
   background: rgba(58, 134, 255, 0.2);
+}
+
+.divider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .pane__header {
