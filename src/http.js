@@ -25,18 +25,17 @@ const SHARE_HEADERS = {
  * before it touches the DOM (public_html/render.js); this policy is what keeps a
  * sanitiser bug from becoming script execution on this origin.
  *
- * Scripts come from this origin and Google Tag Manager only — no inline script anywhere,
- * which is why the analytics snippet lives in `analytics.js`. Images may come from any
- * HTTPS host, because markdown embeds them by URL. Nowhere to submit a form, no frames,
- * no plugins, no <base>.
+ * Scripts and requests go to this origin only: no inline script, no third-party script
+ * (the site carries no analytics). Images may come from any HTTPS host, because markdown
+ * embeds them by URL. Nowhere to submit a form, no frames, no plugins, no <base>.
  */
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' https://www.googletagmanager.com",
+  "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' https: data:",
   "font-src 'self'",
-  "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
+  "connect-src 'self'",
   "frame-ancestors 'none'",
   "frame-src 'none'",
   "object-src 'none'",

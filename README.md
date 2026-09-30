@@ -31,8 +31,8 @@ Shares are stored as plaintext so that `.md` can serve the raw text. The link is
 access control: ids are [ULIDs](https://github.com/ulid/spec) with 80 random bits. Do not
 share anything secret this way. For secrets, use [secret.airat.top](https://secret.airat.top).
 
-Shared pages are not indexed. They send no referrer, and they are reported to analytics
-without their URL. Rendered markdown is sanitised with DOMPurify under a strict content
+Shared pages are not indexed and send no referrer. The site carries no analytics and no
+third-party scripts. Rendered markdown is sanitised with DOMPurify under a strict content
 security policy. Images in a shared document load from wherever the author linked them,
 so their hosts see the reader's IP address, as with any markdown viewer.
 
