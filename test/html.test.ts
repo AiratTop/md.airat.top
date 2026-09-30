@@ -154,6 +154,12 @@ describe("server-side cleaning", () => {
     }
   });
 
+  it("writes alert titles without the plugin's inline SVG icon", async () => {
+    const html = await fragment("> [!WARNING]\n> Careful.");
+    expect(html).toContain('<p class="markdown-alert-title">Warning</p>');
+    expect(html).not.toContain("<svg");
+  });
+
   it("leaves diagrams as their source", async () => {
     const html = await fragment("```mermaid\ngraph LR\n  A --> B\n```");
     expect(html).toContain('<pre class="mermaid-source"><code>graph LR');
