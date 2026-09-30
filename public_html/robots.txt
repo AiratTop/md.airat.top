@@ -8,7 +8,6 @@ Allow: /styles.css
 Allow: /app.js
 Allow: /common.js
 Allow: /render.js
-Allow: /analytics.js
 Allow: /vendor/
 Allow: /site.webmanifest
 Allow: /llms.txt

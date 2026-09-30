@@ -43,5 +43,5 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       # Chrome is preinstalled on GitHub's Ubuntu runners; the suite starts wrangler dev
-      # against a local D1 and stubs analytics, so it needs no credential and no network.
+      # against a local D1, so it needs no credential and no network.
       - run: npm run test:e2e
