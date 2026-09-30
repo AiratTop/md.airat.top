@@ -34,12 +34,14 @@ and not a secret store — see `../secret.airat.top` for that.
   - `view.html` + `view.js` the shared-document page (the Worker fills the shell);
   - `render.js` markdown → sanitised HTML, used by both pages: markdown-it and its
     official plugins, highlight.js, task lists, front matter as a table, and
-    `renderDiagrams()` for mermaid; everything goes through DOMPurify;
+    `renderDiagrams()` for mermaid, `renderMath()` for KaTeX; everything goes through
+    DOMPurify;
   - `common.js` storage, theme, delete tokens, date formatting, used by both pages;
   - `vendor/` built by `npm run vendor` (`scripts/vendor.mjs`) from pinned
     devDependencies — never edited by hand: `markdown-kit.js` (the libraries, entry
     `scripts/markdown-kit.entry.js`), `mermaid/` (ESM, one chunk per diagram type,
-    loaded only when a document has a diagram), `purify.min.js`, `highlight.css`.
+    loaded only when a document has a diagram), `katex/` (ESM, CSS, woff2 fonts; loaded
+    only when a document has math), `purify.min.js`, `highlight.css`.
     It also regenerates `THIRD_PARTY_NOTICES.md`; CI fails if either is out of date.
 - Tests: `test/`, run with `npm test` — vitest in `workerd` against a real local D1 with
   the real `migrations/` applied. `test/e2e/` runs the page scripts in Chrome against
@@ -65,6 +67,12 @@ and not a secret store — see `../secret.airat.top` for that.
 - Mermaid runs with `securityLevel: "strict"`, SVG-text labels (no `foreignObject`), and
   `secure` keys a diagram's `%%{init}%%` cannot override (`themeCSS`, `htmlLabels` among
   them); its SVG is sanitised again with DOMPurify's SVG profile before insertion.
+- Math never renders into the HTML that gets sanitised: KaTeX needs inline styles,
+  which the sanitiser strips. `markdown-it-dollarmath` only parses; its renderer writes
+  the TeX as text into a `.math-tex` placeholder, and `renderMath()` runs KaTeX into the
+  placeholders after sanitising, with `trust: false` and bounded `maxSize`/`maxExpand`.
+  The plugin targets markdown-it 13: `overrides` accepts 15 for it, and
+  `scripts/markdown-it-utils.shim.js` supplies the one internal file it imports.
 - Mermaid is built from its ESM sources, not copied from its dist, so its dependencies
   take the versions and `overrides` pinned here (its dist bundled a vulnerable lodash-es).
 - Rendered markdown can carry any id. `SANITIZE_NAMED_PROPS` prefixes them with

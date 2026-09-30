@@ -40,6 +40,7 @@ if (!share) {
   docTitle.textContent = "Shared markdown";
   const render = () => {
     preview.innerHTML = renderMarkdown(share.content);
+    renderMath(preview);
     renderDiagrams(preview);
   };
   render();

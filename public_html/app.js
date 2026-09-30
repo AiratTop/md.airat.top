@@ -36,6 +36,7 @@ Write on the left. See the preview on the right. **Share** gives you a link for 
 - **Bold**, *italic*, ~~strikethrough~~, ==highlight==
 - H~2~O and 19^th^, footnotes[^1] and :sparkles: emoji
 - Tables, quotes, links and code with highlighting
+- Math: $E = mc^2$ inline, or a \\$\\$ block
 
 - [x] Task lists
 - [ ] Your next document
@@ -71,6 +72,7 @@ let diagramTimer = null;
 const updatePreview = () => {
   const markdown = textarea.value;
   preview.innerHTML = renderMarkdown(markdown);
+  renderMath(preview);
   // Diagrams are drawn once typing pauses: mid-edit, a diagram rarely parses.
   clearTimeout(diagramTimer);
   diagramTimer = setTimeout(() => renderDiagrams(preview), 300);

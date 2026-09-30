@@ -12,12 +12,13 @@ import mark from "markdown-it-mark";
 import ins from "markdown-it-ins";
 import abbr from "markdown-it-abbr";
 import deflist from "markdown-it-deflist";
+import { dollarmathPlugin as math } from "markdown-it-dollarmath";
 import hljs from "highlight.js/lib/common";
 import { load as loadYaml } from "js-yaml";
 
 globalThis.MarkdownKit = {
   MarkdownIt,
-  plugins: { sub, sup, footnote, emoji, frontMatter, mark, ins, abbr, deflist },
+  plugins: { sub, sup, footnote, emoji, frontMatter, mark, ins, abbr, deflist, math },
   hljs,
   loadYaml,
 };
