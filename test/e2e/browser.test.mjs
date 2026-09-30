@@ -385,10 +385,11 @@ const EXPORT_DRAFT = [
   "```",
 ].join("\n");
 
-test("Export downloads the markdown as it is, named after the title", async () => {
+test("Export downloads the markdown as it is, named after the title and the time", async () => {
   const { page, context } = await openPage("/", { draft: EXPORT_DRAFT });
   const download = await exportAs(page, "md");
-  assert.equal(download.suggestedFilename(), "quarterly-notes.md");
+  // Title, then local date and time: two exports never overwrite each other.
+  assert.match(download.suggestedFilename(), /^quarterly-notes_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.md$/);
   assert.equal(await downloadedText(download), EXPORT_DRAFT);
   await context.close();
 });
@@ -420,7 +421,7 @@ test("Export as PDF prints a light copy of the document, even from the dark them
   await page.click("#exportBtn");
   await page.click('[data-export="pdf"]');
   await page.waitForFunction(() => window.__printedTitle !== undefined, null, { timeout: 10_000 });
-  assert.equal(await page.evaluate(() => window.__printedTitle), "quarterly-notes");
+  assert.match(await page.evaluate(() => window.__printedTitle), /^quarterly-notes_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/);
   assert.equal(await page.evaluate(() => document.body.classList.contains("is-printing")), true);
   const exportSvg = await page.evaluate(() => document.querySelector("#exportArea .mermaid-diagram svg")?.outerHTML ?? "");
   assert.match(exportSvg, /#ececff/i, "the printed diagram is light");

@@ -21,7 +21,10 @@ const documentTitle = (container) => {
   return heading ? heading.textContent.trim() : "";
 };
 
-const fileName = (title, extension) => {
+// "quarterly-notes_2026-10-01_14-32-05.md": the title as letters, digits and hyphens
+// (nothing any file system forbids), then the local date and time to the second, so
+// exporting twice does not overwrite the first file.
+const fileName = (title, extension, now = new Date()) => {
   const slug = title
     .normalize("NFKC")
     .toLowerCase()
@@ -29,7 +32,11 @@ const fileName = (title, extension) => {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60)
     .replace(/-+$/, "");
-  return `${slug || "document"}.${extension}`;
+  const pad = (value) => String(value).padStart(2, "0");
+  const stamp =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_` +
+    `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+  return `${slug || "document"}_${stamp}.${extension}`;
 };
 
 const download = (name, type, content) => {
