@@ -76,6 +76,15 @@ def reading_time(text: str, wpm: int = 200) -> int:
 curl -s https://md.airat.top/<id>.md
 ```
 
+```sql
+-- About 50 languages in all: SQL, JSON, YAML, Dockerfile, Go, Rust, PowerShell…
+SELECT id, title FROM shares WHERE expires_at > now() ORDER BY created_at DESC;
+```
+
+```json
+{ "content": "# Hello", "expiresAt": "2026-10-02T12:00:00Z" }
+```
+
 ## 🧮 Math
 
 Inline, like $e^{i\pi} + 1 = 0$, or on its own line:

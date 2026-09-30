@@ -15,7 +15,11 @@ with a D1 database.
 
 - Live markdown rendering with GitHub-flavored markdown (tables, task lists,
   strikethrough, autolinks) and more:
-  - syntax highlighting for fenced code with a language;
+  - syntax highlighting for fenced code with a language, about 50 of them:
+    highlight.js's common set (JavaScript/TypeScript, Python, Bash, SQL, JSON, YAML,
+    Go, Rust, Java, C/C++/C#, PHP, Ruby, Kotlin, Swift and more) plus Dockerfile,
+    nginx, Apache, PowerShell, batch, CMake, HTTP, Protobuf, Dart, Scala, Groovy,
+    Elixir, Haskell, LaTeX and MATLAB;
   - [Mermaid](https://mermaid.js.org) diagrams in ` ```mermaid ` blocks;
   - math with [KaTeX](https://katex.org): `$inline$`, `$$display$$` and ` ```math `
     blocks (a dollar next to a digit or a space stays a dollar, so prices are safe);
