@@ -21,6 +21,7 @@ import { isShareId } from "./ids.js";
 import { deleteExpired } from "./db.js";
 import { serveShare } from "./share.js";
 import { checkHealth } from "./health.js";
+import { rateLimitBucket } from "./address.js";
 import { RATE_LIMITS, SWEEP_BATCH, SWEEP_MAX_BATCHES } from "./limits.js";
 import { json, error, redirect, withPageHeaders } from "./http.js";
 
@@ -55,8 +56,8 @@ async function spend(env, key, { limit, periodSeconds }) {
 async function enforceRateLimit(request, env, url) {
   if (!env.RATE_LIMITER) return null;
 
-  // Set at the edge, overwriting whatever the client sent.
-  const address = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  // Set at the edge, overwriting whatever the client sent. IPv6 is counted per /64.
+  const address = rateLimitBucket(request.headers.get("CF-Connecting-IP") ?? "unknown");
   const creating = request.method === "POST" && url.pathname === "/api/shares";
 
   const retryAfter = creating

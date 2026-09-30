@@ -54,7 +54,14 @@ async function handleCreate(request, env) {
     deleteTokenHash: await sha256Hex(deleteToken)
   };
 
-  await insertShare(env.DB, share);
+  // A full or unavailable D1 is the one failure a flood can cause; the editor shows this
+  // message, where an uncaught throw would give it Cloudflare's HTML error page to parse.
+  try {
+    await insertShare(env.DB, share);
+  } catch (cause) {
+    console.error("insertShare failed", cause);
+    return error("Could not store the share right now. Try again later.", 503, "unavailable");
+  }
 
   // The delete token is returned here and never again: only its hash is stored.
   return json(

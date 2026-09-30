@@ -14,7 +14,8 @@ marked.setOptions({
 });
 
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A" && node.hasAttribute("href")) {
+  // In-page anchors (footnotes, a table of contents) stay in the same tab.
+  if (node.tagName === "A" && node.hasAttribute("href") && !node.getAttribute("href").startsWith("#")) {
     node.setAttribute("target", "_blank");
     node.setAttribute("rel", "noopener noreferrer nofollow ugc");
   }

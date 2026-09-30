@@ -24,7 +24,8 @@ and not a secret store — see `../secret.airat.top` for that.
 
 ## Structure
 - Worker entry: `src/index.js` — routing, rate limiting, cron sweep.
-- `src/share.js` the three representations of a share and the page title;
+- `src/address.js` the rate-limit bucket (IPv6 per /64);
+  `src/share.js` the three representations of a share and the page title;
   `src/api.js` create/delete; `src/db.js` every D1 statement; `src/http.js` response
   headers and the body reader; `src/limits.js` the numbers; `src/ids.js` ULIDs.
 - Schema: `migrations/`, applied with `wrangler d1 migrations apply DB`.
@@ -47,8 +48,9 @@ and not a secret store — see `../secret.airat.top` for that.
 - `/health` liveness with a D1 round trip, ahead of the rate limiter.
 
 ## Invariants
-- The editor sends nothing anywhere. Uploading happens only from the share dialog, after
-  the author confirms that anyone with the link can read the text.
+- The editor never sends the text anywhere (the GA counter reports page views only).
+  Uploading happens only from the share dialog, after the author confirms that anyone
+  with the link can read the text.
 - Shares are plaintext on purpose (so `.md` works for curl and models); the 80 random
   bits of the ULID are the only access control. Never make ids shorter or sequential.
 - Every read of a share filters `expires_at > now`; the hourly cron only reclaims space.
@@ -64,12 +66,19 @@ and not a secret store — see `../secret.airat.top` for that.
 ## AI Working Notes
 - Share lifetime is fixed at 24 hours (`SHARE_TTL_MS`). Content cap 256 KB of UTF-8,
   repeated in `app.js` as `MAX_SHARE_BYTES`; `test/limits.test.ts` keeps them equal.
-- Creating is rate limited per address, 10/minute and 200/day, via the Durable Object in
-  `src/rate-limiter.js` (see `../secret.airat.top/AGENTS.md` for why not the rate limit
+- Creating is rate limited per IPv4 address or IPv6 /64 (`src/address.js`), 10/minute
+  and 200/day, via the Durable Object in `src/rate-limiter.js` (see `../secret.airat.top/AGENTS.md` for why not the rate limit
   binding). Reading is not metered. If D1 ever fills, creates fail until the oldest shares
   expire — reads are unaffected and it heals itself within 24 hours.
 - Delete tokens are stored only as SHA-256; the creator's browser keeps the token in
   localStorage (`md-preview-shares`) for "Delete now".
+- `shareTitle` runs server-side on every view of up to 256 KB of someone else's text:
+  it scans line by line and cuts each line short before any pattern sees it, because the
+  heading pattern backtracks quadratically on long runs of spaces. Keep new title or
+  preview logic linear, and test it on a hostile 256 KB input.
+- `vitest-pool-workers` pins its own `wrangler`/`miniflare`; `overrides` in `package.json`
+  lifts their `undici` and `sharp` past known advisories. Drop an override once the pool
+  ships versions that no longer need it.
 - The view page's data travels in `<script type="application/json" id="share-data">`;
   `embeddable()` in `src/share.js` escapes `<`, `>` and `&` so a document cannot close it.
 - `npm run typecheck` regenerates `worker-configuration.d.ts` (not committed) and runs
