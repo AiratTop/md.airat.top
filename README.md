@@ -15,7 +15,7 @@ links that delete themselves after 24 hours. Runs on Cloudflare Workers with a D
 - Split layout: editor on the left, preview on the right.
 - Sync scroll, reset, and copy actions.
 - Dark mode based on browser settings with manual override.
-- The editor runs entirely in your browser and sends nothing anywhere.
+- The editor runs in your browser. Your text never leaves it unless you press **Share**.
 - **Share** creates a temporary link to a snapshot of your text:
   - `https://md.airat.top/{id}`: the rendered document;
   - `https://md.airat.top/{id}.md`: the raw markdown, for curl, scripts and LLMs;
@@ -32,12 +32,16 @@ share anything secret this way. For secrets, use [secret.airat.top](https://secr
 
 Shared pages are not indexed. They send no referrer, and they are reported to analytics
 without their URL. Rendered markdown is sanitised with DOMPurify under a strict content
-security policy.
+security policy. Images in a shared document load from wherever the author linked them,
+so their hosts see the reader's IP address, as with any markdown viewer.
+
+To report a shared link that carries abuse, use the **Report abuse** link on its page or
+write to [mail@airat.top](mailto:mail@airat.top). Security issues: see [SECURITY.md](SECURITY.md).
 
 ### API
 
 ```bash
-# Create a share (limit: 256 KB of UTF-8; 10 per minute and 200 per day per address)
+# Create a share (limit: 256 KB of UTF-8; 10 per minute and 200 per day per IPv4 address or IPv6 /64)
 curl -s https://md.airat.top/api/shares \
   -H 'Content-Type: application/json' \
   -d '{"content":"# Hello\n\nShared from the command line."}'
