@@ -24,6 +24,9 @@ links that delete themselves after 24 hours. Runs on Cloudflare Workers with a D
 - A first visit (and **Reset**) opens a tour of all of it, kept in `public_html/sample.md`.
 - Split layout: editor on the left, preview on the right.
 - Sync scroll, reset, and copy actions.
+- **Export** to Markdown, a standalone HTML file (styles, fonts and images embedded; no
+  scripts) or PDF through the browser's print dialog. Exports are always light and are
+  made in the browser; nothing is uploaded.
 - Dark mode based on browser settings with manual override.
 - The editor runs in your browser. Your text never leaves it unless you press **Share**.
 - **Share** creates a temporary link to a snapshot of your text:

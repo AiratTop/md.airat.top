@@ -358,3 +358,92 @@ test("a first visit opens the tour from sample.md, and Reset brings it back", as
   await page.waitForFunction((text) => document.getElementById("markdownInput").value === text, tour);
   await context.close();
 });
+
+/** Opens the Export menu and picks an item, returning the download it starts. */
+async function exportAs(page, kind) {
+  await page.click("#exportBtn");
+  const [download] = await Promise.all([page.waitForEvent("download"), page.click(`[data-export="${kind}"]`)]);
+  return download;
+}
+
+async function downloadedText(download) {
+  const chunks = [];
+  for await (const chunk of await download.createReadStream()) chunks.push(chunk);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+const EXPORT_DRAFT = [
+  "# Quarterly notes",
+  "",
+  "Some $x^2$ math and an image:",
+  "",
+  '<img src="/favicon-32x32.png" alt="icon">',
+  "",
+  "```mermaid",
+  "graph LR",
+  "  A --> B",
+  "```",
+].join("\n");
+
+test("Export downloads the markdown as it is, named after the title", async () => {
+  const { page, context } = await openPage("/", { draft: EXPORT_DRAFT });
+  const download = await exportAs(page, "md");
+  assert.equal(download.suggestedFilename(), "quarterly-notes.md");
+  assert.equal(await downloadedText(download), EXPORT_DRAFT);
+  await context.close();
+});
+
+test("Export as HTML gives one light, script-free file that works offline", async () => {
+  const { page, context } = await openPage("/", { draft: EXPORT_DRAFT });
+  await page.click("#darkMode"); // the page is dark; the export must not be
+  await page.waitForSelector("#preview .mermaid-diagram svg", { timeout: 10_000 });
+  const html = await downloadedText(await exportAs(page, "html"));
+  assert.match(html, /<html lang="en" data-theme="light">/);
+  assert.match(html, /<title>Quarterly notes<\/title>/);
+  assert.doesNotMatch(html, /<script/i);
+  assert.match(html, /class="katex/);
+  assert.match(html, /data:font\/woff2;base64,/, "KaTeX fonts are embedded");
+  assert.match(html, /<img src="data:image\/png;base64,/, "this site's images are embedded");
+  assert.match(html, /<svg/);
+  assert.match(html, /#ececff/i, "diagrams are drawn in the light theme");
+  await context.close();
+});
+
+test("Export as PDF prints a light copy of the document, even from the dark theme", async () => {
+  const { page, context } = await openPage("/", { draft: EXPORT_DRAFT });
+  await page.click("#darkMode");
+  await page.evaluate(() => {
+    window.print = () => {
+      window.__printedTitle = document.title;
+    };
+  });
+  await page.click("#exportBtn");
+  await page.click('[data-export="pdf"]');
+  await page.waitForFunction(() => window.__printedTitle !== undefined, null, { timeout: 10_000 });
+  assert.equal(await page.evaluate(() => window.__printedTitle), "quarterly-notes");
+  assert.equal(await page.evaluate(() => document.body.classList.contains("is-printing")), true);
+  const exportSvg = await page.evaluate(() => document.querySelector("#exportArea .mermaid-diagram svg")?.outerHTML ?? "");
+  assert.match(exportSvg, /#ececff/i, "the printed diagram is light");
+  await page.emulateMedia({ media: "print" });
+  assert.equal(await page.isVisible("#exportArea"), true);
+  assert.equal(await page.isVisible(".backdrop"), false);
+  await context.close();
+});
+
+test("the shared page's Export menu opens over the document and works", async () => {
+  const created = await (
+    await fetch(`${BASE}/api/shares`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: EXPORT_DRAFT }),
+    })
+  ).json();
+  const { page, context } = await openPage(`/${created.id}`);
+  const download = await exportAs(page, "md");
+  assert.equal(await downloadedText(download), EXPORT_DRAFT);
+  await page.click("#exportBtn");
+  assert.equal(await page.getAttribute("#rawLink", "href"), created.markdownUrl);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.isHidden("#exportMenu"), true);
+  await context.close();
+});

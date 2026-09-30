@@ -37,6 +37,8 @@ and not a secret store — see `../secret.airat.top` for that.
     `renderDiagrams()` for mermaid, `renderMath()` for KaTeX; everything goes through
     DOMPurify;
   - `common.js` storage, theme, delete tokens, date formatting, used by both pages;
+  - `export.js` the Export menu on both pages: Markdown, standalone HTML, PDF (print);
+  - `sample.md` the tour shown on a first visit and by Reset;
   - `vendor/` built by `npm run vendor` (`scripts/vendor.mjs`) from pinned
     devDependencies — never edited by hand: `markdown-kit.js` (the libraries, entry
     `scripts/markdown-kit.entry.js`), `mermaid/` (ESM, one chunk per diagram type,
@@ -88,6 +90,12 @@ and not a secret store — see `../secret.airat.top` for that.
 - Shared pages must not leak their URL: `Referrer-Policy: no-referrer`.
 - Everything except `/` and its assets carries `noindex` and `no-store`, and is disallowed
   in `robots.txt`.
+- Export happens in the browser only. It renders a light copy into `#exportArea`
+  (outside the page chrome; `.export-document` carries the light palette, so it stays
+  light on a dark page, diagrams included via `renderDiagrams(…, { theme: "default" })`).
+  The HTML file is that copy plus this site's CSS, KaTeX fonts and same-origin images
+  inlined, with no script. PDF is `window.print()` with `body.is-printing`, which shows
+  only `#exportArea`. No settings dialog and no PNG, on purpose: the tool stays simple.
 
 ## AI Working Notes
 - Share lifetime is fixed at 24 hours (`SHARE_TTL_MS`). Content cap 256 KB of UTF-8,

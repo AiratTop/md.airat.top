@@ -56,7 +56,15 @@
         </div>
         <div class="controls" role="group" aria-label="Document controls" id="docControls" hidden>
           <button class="btn btn--ghost" id="copyBtn" type="button">Copy</button>
-          <a class="btn btn--ghost" id="rawLink" href="#">Raw .md</a>
+          <div class="menu-wrap">
+            <button class="btn btn--ghost" id="exportBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="exportMenu">Export</button>
+            <div class="menu" id="exportMenu" role="menu" aria-label="Export" hidden>
+            <button type="button" role="menuitem" data-export="md">Markdown <small>.md</small></button>
+            <button type="button" role="menuitem" data-export="html">HTML <small>.html</small></button>
+            <button type="button" role="menuitem" data-export="pdf">PDF <small>print</small></button>
+              <a role="menuitem" id="rawLink" href="#">Open raw <small>.md</small></a>
+            </div>
+          </div>
           <button class="btn" id="editBtn" type="button">Open in editor</button>
           <button class="btn btn--ghost btn--danger" id="deleteBtn" type="button" hidden>Delete now</button>
           <label class="toggle">
@@ -100,10 +108,13 @@
       </footer>
     </div>
 
+    <div class="preview export-document" id="exportArea" aria-hidden="true"></div>
+
     <script src="/vendor/markdown-kit.js"></script>
     <script src="/vendor/purify.min.js"></script>
     <script src="/render.js"></script>
     <script src="/common.js"></script>
+    <script src="/export.js"></script>
     <script src="/view.js"></script>
   </body>
 </html>
