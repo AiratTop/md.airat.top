@@ -34,10 +34,10 @@ and not a secret store — see `../secret.airat.top` for that.
   - `view.html` + `view.js` the shared-document page (the Worker fills the shell);
   - `render.js` markdown → sanitised HTML (marked + DOMPurify), used by both pages;
   - `common.js` storage, theme, delete tokens, date formatting, used by both pages;
-  - `analytics.js` the GA counter; `vendor/` marked and DOMPurify.
+  - `vendor/` marked and DOMPurify.
 - Tests: `test/`, run with `npm test` — vitest in `workerd` against a real local D1 with
   the real `migrations/` applied. `test/e2e/` runs the page scripts in Chrome against
-  `wrangler dev` (`npm run test:e2e`, analytics stubbed); both run in CI and before deploy.
+  `wrangler dev` (`npm run test:e2e`); both run in CI and before deploy.
 
 ## URLs
 - `/` the editor — the only indexable page.
@@ -49,8 +49,7 @@ and not a secret store — see `../secret.airat.top` for that.
 - `/health` liveness with a D1 round trip, ahead of the rate limiter.
 
 ## Invariants
-- The editor never sends the text anywhere (the GA counter reports page views only).
-  Uploading happens only from the share dialog, after the author confirms that anyone
+- The editor never sends the text anywhere. Uploading happens only from the share dialog, after the author confirms that anyone
   with the link can read the text.
 - Shares are plaintext on purpose (so `.md` works for curl and models); the 80 random
   bits of the ULID are the only access control. Never make ids shorter or sequential.
@@ -61,15 +60,13 @@ and not a secret store — see `../secret.airat.top` for that.
   `user-content-`, and page scripts look their controls up before rendering, dialog
   controls inside the dialog. A document once published the draft through
   `<a id="shareCreate">`; `test/e2e` guards it.
-- Analytics sees page views and nothing from the text. `analytics.js` loads before
-  gtag.js and stops clicks inside `.preview` in the window capture phase, because GA's
-  enhanced measurement otherwise reports every clicked outbound or download link in full
-  (`link_url`). Outbound clicks, file downloads and form interactions should also be off
-  in the GA property.
-- No inline script on any page: the CSP in `src/http.js` forbids it. That is why the GA
-  snippet lives in `analytics.js`.
-- Shared pages must not leak their URL: `Referrer-Policy: no-referrer`, and `analytics.js`
-  reports them to GA as `/shared` with a fixed title.
+- No analytics and no third-party script, on any page. It was removed on 2026-09-30:
+  gtag.js has the whole page — drafts, shared documents, delete tokens — and its
+  enhanced measurement was caught reporting clicked links from drafts, tokens included.
+  The CSP in `src/http.js` allows scripts and requests to this origin only, and
+  `test/e2e` fails on any request to another origin. Traffic numbers come from Cloudflare.
+- No inline script on any page: the CSP forbids it.
+- Shared pages must not leak their URL: `Referrer-Policy: no-referrer`.
 - Everything except `/` and its assets carries `noindex` and `no-store`, and is disallowed
   in `robots.txt`.
 
@@ -104,5 +101,5 @@ and not a secret store — see `../secret.airat.top` for that.
 ## Site Conventions
 - Keep UI style consistent with other AiratTop tools.
 - Keep SEO metadata and social tags in `index.html`.
-- Keep the Google Analytics counter (`analytics.js`) and site-verification tags.
+- Keep the site-verification tags. No analytics or other third-party tracking scripts.
 - Preserve editor/preview parity and readability on mobile/desktop.

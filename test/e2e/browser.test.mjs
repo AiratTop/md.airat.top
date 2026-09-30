@@ -8,8 +8,8 @@
  *
  * Run: `npm run test:e2e` (applies the local D1 migrations, starts `wrangler dev`, and
  * uses the Chrome installed on the machine — GitHub's Ubuntu runners have one).
- * Google Analytics is replaced by a stub that counts what a real gtag.js would see, so
- * the suite needs no network and sends nothing to Google.
+ * The pages make no third-party requests, so the suite needs no network, and every test
+ * checks that this stays true.
  */
 
 import { test, before, after } from "node:test";
@@ -43,25 +43,28 @@ before(async () => {
 });
 
 after(async () => {
+  // Clean up before asserting: a failed assertion must not leave wrangler dev running.
   await browser?.close();
   if (server) process.kill(-server.pid);
+  assert.deepEqual(foreignRequests, [], "a page requested another origin");
 });
 
 /**
- * A fresh page with GA stubbed. The stub listens for clicks the way enhanced measurement
- * does — on window and document, capture and bubble — and counts them.
+ * A fresh page. Any request to another origin, or any resource the CSP refused, fails
+ * the suite:
+ * the site carries no analytics and no third-party script, and a document in these tests
+ * links to other sites but embeds nothing from them.
  */
+const foreignRequests = [];
+
 async function openPage(path = "/", { blockStorage = false, draft } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  await context.route("https://www.googletagmanager.com/**", (route) =>
-    route.fulfill({
-      contentType: "application/javascript",
-      body: `window.__gaClicks = [];
-        for (const target of [window, document]) for (const capture of [true, false])
-          target.addEventListener("click", (e) => window.__gaClicks.push(e.target.textContent), capture);`,
-    })
-  );
-  await context.route(/google-analytics\.com/, (route) => route.abort());
+  await context.route(/.*/, (route) => {
+    const url = route.request().url();
+    if (url.startsWith(BASE)) return route.continue();
+    foreignRequests.push(url);
+    return route.abort();
+  });
   if (draft !== undefined) {
     await context.addInitScript((value) => {
       if (!sessionStorage.getItem("seeded")) {
@@ -78,6 +81,11 @@ async function openPage(path = "/", { blockStorage = false, draft } = {}) {
     });
   }
   const page = await context.newPage();
+  // A third-party script added to a page is blocked by the CSP before it makes any
+  // request, so the violation report is where it shows up.
+  page.on("console", (message) => {
+    if (/Content Security Policy/.test(message.text())) foreignRequests.push(message.text());
+  });
   const posts = [];
   page.on("request", (request) => {
     if (request.method() === "POST" && request.url().endsWith("/api/shares")) posts.push(request);
@@ -110,15 +118,15 @@ test("markdown cannot stand in for a dialog control and publish the draft", asyn
   await context.close();
 });
 
-test("clicks inside rendered markdown never reach analytics", async () => {
+test("a link in the document opens in a new tab and sends nothing anywhere else", async () => {
   const { page, context } = await openPage("/", { draft: "[Private](https://example.com/private?token=SECRET)" });
-  await page.waitForFunction(() => Array.isArray(window.__gaClicks));
-  await page.click("#preview a", { modifiers: ["Meta"] }).catch(() => {});
+  const link = page.locator("#preview a");
+  assert.equal(await link.getAttribute("target"), "_blank");
+  assert.match(await link.getAttribute("rel"), /noreferrer/);
+  const before = foreignRequests.length;
   await page.click("#preview", { position: { x: 5, y: 5 } });
   await page.click("#copyBtn");
-  const seen = await page.evaluate(() => window.__gaClicks);
-  assert.ok(!seen.some((text) => text.includes("Private")), `analytics saw a document click: ${seen}`);
-  assert.ok(seen.includes("Copy"), "the stub should still see clicks outside the document");
+  assert.equal(foreignRequests.length, before);
   await context.close();
 });
 

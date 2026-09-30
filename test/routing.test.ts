@@ -61,7 +61,8 @@ describe("the shared page", () => {
   it("carries a content policy with no inline script", async () => {
     const share = await create("# hi");
     const csp = (await call(`/${share.id}`)).headers.get("content-security-policy") ?? "";
-    expect(csp).toContain("script-src 'self' https://www.googletagmanager.com");
+    expect(csp).toContain("script-src 'self';");
+    expect(csp).toContain("connect-src 'self';");
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
     expect(csp).toContain("frame-ancestors 'none'");
   });
@@ -128,16 +129,14 @@ describe("the editor", () => {
     }
   });
 
-  it("keeps the Google Analytics counter", async () => {
-    const html = await (await call("/")).text();
-    expect(html).toContain("https://www.googletagmanager.com/gtag/js?id=G-CVEGGNPJXK");
-    expect(html).toContain('<script src="/analytics.js"></script>');
-  });
-
-  it("reports a shared page to analytics without its id", async () => {
-    const script = await (await call("/analytics.js")).text();
-    expect(script).toContain("page_location: `${location.origin}/shared`");
-    expect(script).toContain('page_title: "Shared markdown"');
+  /** No analytics: a third-party script would see drafts, shared documents and tokens. */
+  it("loads no third-party script", async () => {
+    for (const path of ["/", `/${newId()}`]) {
+      const html = await (await call(path)).text();
+      const scripts = [...html.matchAll(/<script[^>]*src="([^"]*)"/g)].map((m) => m[1]);
+      expect(scripts.length).toBeGreaterThan(0);
+      for (const src of scripts) expect(src.startsWith("/"), `${path} loads ${src}`).toBe(true);
+    }
   });
 
   it("allows a crawler the assets it needs to render the page", async () => {
