@@ -1,7 +1,7 @@
 // Markdown → safe HTML, shared by the editor and the shared-document page.
 //
-// markdown-it with its official plugins, highlight.js for code and mermaid for diagrams,
-// all from vendor/ (built by `npm run vendor`). The markdown on either page can be
+// markdown-it with its official plugins, highlight.js for code, KaTeX for math and
+// mermaid for diagrams, all from vendor/ (built by `npm run vendor`). The markdown on either page can be
 // somebody else's — a shared document, or one opened from a share into the editor — so
 // everything goes through DOMPurify before it reaches the DOM. Style is stripped as well
 // as script, so a document cannot restyle the page around it into something that looks
@@ -34,7 +34,23 @@ const md = new MarkdownIt({
   .use(plugins.ins)
   .use(plugins.abbr)
   .use(plugins.deflist)
-  .use(plugins.frontMatter, () => {});
+  .use(plugins.frontMatter, () => {})
+  // Math: $inline$, $$display$$ and ```math fences. Conservative about dollars — no space
+  // inside the delimiters, no digit next to them — so "$5 and $10" stays prose. The
+  // plugin only parses; see renderMath() for why the TeX is rendered after sanitising.
+  .use(plugins.math, {
+    allow_space: false,
+    allow_digits: false,
+    double_inline: true,
+    allow_labels: false,
+    renderer: (tex, { displayMode }) => mathPlaceholder(tex, displayMode),
+  });
+
+function mathPlaceholder(tex, displayMode) {
+  return displayMode
+    ? `<div class="math-tex is-display">${escapeHtml(tex)}</div>\n`
+    : `<span class="math-tex">${escapeHtml(tex)}</span>`;
+}
 
 // Front matter shows as a one-row table, the way GitHub shows it. Anything that is not a
 // plain mapping — a list, a scalar, YAML that does not parse — shows as the YAML itself.
@@ -69,8 +85,12 @@ md.renderer.rules.front_matter = (tokens, index) => {
 const defaultFence = md.renderer.rules.fence;
 md.renderer.rules.fence = (tokens, index, options, env, self) => {
   const token = tokens[index];
-  if (token.info.trim().split(/\s+/)[0].toLowerCase() === "mermaid") {
+  const language = token.info.trim().split(/\s+/)[0].toLowerCase();
+  if (language === "mermaid") {
     return `<pre class="mermaid-source"><code>${escapeHtml(token.content)}</code></pre>\n`;
+  }
+  if (language === "math") {
+    return mathPlaceholder(token.content, true);
   }
   return defaultFence(tokens, index, options, env, self);
 };
@@ -189,5 +209,49 @@ const renderDiagrams = async (container) => {
     figure.className = "mermaid-diagram";
     figure.innerHTML = svg;
     block.replaceWith(figure);
+  }
+};
+
+// ---- Math ---------------------------------------------------------------------------
+//
+// KaTeX positions every glyph with inline styles, and the sanitiser removes style
+// attributes so that a document cannot restyle the page. So KaTeX never renders into
+// the HTML that gets sanitised: the parser leaves the TeX as plain text in a
+// placeholder, DOMPurify treats it like any other text, and KaTeX renders into the
+// placeholder afterwards. Every style it writes then comes from KaTeX, computed from
+// TeX, not from the author. trust:false keeps out \href, \url, \htmlStyle and the
+// like; maxSize and maxExpand bound what a formula can make KaTeX draw or expand.
+
+let katexLoading = null;
+
+const loadKatex = () => {
+  if (!katexLoading) {
+    const stylesheet = document.createElement("link");
+    stylesheet.rel = "stylesheet";
+    stylesheet.href = "/vendor/katex/katex.css";
+    document.head.append(stylesheet);
+    katexLoading = import("/vendor/katex/katex.js").then((module) => module.default);
+  }
+  return katexLoading;
+};
+
+const renderMath = async (container) => {
+  const nodes = [...container.querySelectorAll(".math-tex:not(.is-rendered)")];
+  if (!nodes.length) {
+    return;
+  }
+  const katex = await loadKatex();
+  for (const node of nodes) {
+    if (!node.isConnected) continue;
+    katex.render(node.textContent, node, {
+      displayMode: node.classList.contains("is-display"),
+      throwOnError: false,
+      trust: false,
+      strict: "ignore",
+      maxSize: 20,
+      maxExpand: 500,
+      output: "htmlAndMathml",
+    });
+    node.classList.add("is-rendered");
   }
 };

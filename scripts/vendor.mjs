@@ -7,6 +7,8 @@
 //                            built from its ESM sources rather than copied from its dist,
 //                            so its dependencies get the versions (and overrides) pinned
 //                            here — mermaid's prebuilt bundle carries its own lodash-es
+//   vendor/katex/            KaTeX, ESM, with its stylesheet and woff2 fonts; loaded only
+//                            when a document has math
 //   vendor/purify.min.js     DOMPurify, as published
 //   vendor/highlight.css     the highlight.js theme for code blocks
 
@@ -24,11 +26,21 @@ mkdirSync(vendor, { recursive: true });
 
 const common = { bundle: true, minify: true, legalComments: "none", metafile: true, logLevel: "warning", target: "es2022" };
 
+const markdownItInternals = {
+  name: "markdown-it-internals",
+  setup(build) {
+    build.onResolve({ filter: /^markdown-it\/lib\/common\/utils\.js$/ }, () => ({
+      path: join(root, "scripts/markdown-it-utils.shim.js"),
+    }));
+  },
+};
+
 const kit = await build({
   ...common,
   entryPoints: [join(root, "scripts/markdown-kit.entry.js")],
   outfile: join(vendor, "markdown-kit.js"),
   format: "iife",
+  plugins: [markdownItInternals],
 });
 
 const diagrams = await build({
@@ -39,6 +51,20 @@ const diagrams = await build({
   splitting: true,
   chunkNames: "chunks/[name]-[hash]",
 });
+
+const math = await build({
+  ...common,
+  entryPoints: { katex: join(modules, "katex/dist/katex.mjs") },
+  outdir: join(vendor, "katex"),
+  format: "esm",
+});
+// The stylesheet lists woff2 first, which every browser this site supports takes; the
+// woff and ttf fallbacks are left out rather than shipped unused.
+copyFileSync(join(modules, "katex/dist/katex.min.css"), join(vendor, "katex/katex.css"));
+mkdirSync(join(vendor, "katex/fonts"));
+for (const font of readdirSync(join(modules, "katex/dist/fonts")).filter((name) => name.endsWith(".woff2"))) {
+  copyFileSync(join(modules, "katex/dist/fonts", font), join(vendor, "katex/fonts", font));
+}
 
 const purify = readFileSync(join(modules, "dompurify/dist/purify.min.js"), "utf8").replace(/\n\/\/# sourceMappingURL=.*$/m, "");
 writeFileSync(join(vendor, "purify.min.js"), purify);
@@ -77,6 +103,7 @@ const note = (file, where) => {
 };
 for (const file of Object.keys(kit.metafile.inputs)) note(file, "vendor/markdown-kit.js");
 for (const file of Object.keys(diagrams.metafile.inputs)) note(file, "vendor/mermaid/");
+for (const file of Object.keys(math.metafile.inputs)) note(file, "vendor/katex/");
 note("node_modules/dompurify/dist/purify.min.js", "vendor/purify.min.js");
 note("node_modules/highlight.js/styles/github-dark.min.css", "vendor/highlight.css");
 
