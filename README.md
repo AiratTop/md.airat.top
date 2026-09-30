@@ -11,7 +11,13 @@ links that delete themselves after 24 hours. Runs on Cloudflare Workers with a D
 
 ## Features
 
-- Live markdown rendering with GitHub-flavored markdown.
+- Live markdown rendering with GitHub-flavored markdown (tables, task lists,
+  strikethrough, autolinks) and more:
+  - syntax highlighting for fenced code with a language;
+  - [Mermaid](https://mermaid.js.org) diagrams in ` ```mermaid ` blocks;
+  - footnotes, subscript (`H~2~O`) and superscript (`19^th^`), `==highlight==`,
+    `++inserted++` text, abbreviations, definition lists and `:emoji:` shortcodes;
+  - YAML front matter, shown as a table.
 - Split layout: editor on the left, preview on the right.
 - Sync scroll, reset, and copy actions.
 - Dark mode based on browser settings with manual override.
@@ -96,7 +102,8 @@ First-time setup: `npm run db:create`, then put the printed `database_id` into
 The original source code, configuration, and documentation in this repository are licensed under
 the [Apache License 2.0](LICENSE), with copyright details in [NOTICE](NOTICE).
 
-`public_html/vendor/marked.min.js` and `public_html/vendor/purify.min.js` are third-party software
+Everything in `public_html/vendor/` is third-party software (markdown-it and its plugins,
+highlight.js, js-yaml, mermaid, DOMPurify), built from npm by `npm run vendor`,
 distributed under their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ---

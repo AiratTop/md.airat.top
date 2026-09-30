@@ -361,6 +361,88 @@ textarea {
   margin: 0.35em 0 0;
 }
 
+.preview mark {
+  background: rgba(255, 214, 10, 0.4);
+  color: inherit;
+  padding: 0 0.15em;
+  border-radius: 3px;
+}
+
+.preview ins {
+  text-decoration-color: var(--accent);
+}
+
+.preview abbr[title] {
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+.preview dl {
+  margin: 0 0 1em;
+}
+
+.preview dt {
+  font-weight: 600;
+}
+
+.preview dd {
+  margin: 0.2em 0 0.6em 1.4em;
+}
+
+.preview sub,
+.preview sup {
+  line-height: 0;
+}
+
+.preview .footnotes {
+  margin-top: 2em;
+  font-size: 0.92em;
+  color: var(--muted);
+}
+
+.preview .footnotes-sep {
+  margin: 2em 0 1em;
+}
+
+.preview .footnote-ref a,
+.preview .footnote-backref {
+  text-decoration: none;
+}
+
+.preview .footnotes :target,
+.preview .footnote-ref :target {
+  background: rgba(58, 134, 255, 0.15);
+  border-radius: 4px;
+}
+
+.preview table.front-matter {
+  font-size: 14px;
+}
+
+.preview table.front-matter td {
+  color: var(--muted);
+}
+
+.preview pre code.hljs {
+  padding: 0;
+  background: transparent;
+}
+
+.preview .mermaid-diagram {
+  margin: 0 0 1.25em;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.preview .mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.preview pre.mermaid-source.is-invalid {
+  outline: 2px solid rgba(214, 69, 69, 0.6);
+}
+
 .preview .task-box {
   display: inline-block;
   width: 1.2em;

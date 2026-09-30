@@ -32,9 +32,15 @@ and not a secret store — see `../secret.airat.top` for that.
 - Static UI in `public_html/`:
   - `index.html` + `app.js` the editor and the share dialog;
   - `view.html` + `view.js` the shared-document page (the Worker fills the shell);
-  - `render.js` markdown → sanitised HTML (marked + DOMPurify), used by both pages;
+  - `render.js` markdown → sanitised HTML, used by both pages: markdown-it and its
+    official plugins, highlight.js, task lists, front matter as a table, and
+    `renderDiagrams()` for mermaid; everything goes through DOMPurify;
   - `common.js` storage, theme, delete tokens, date formatting, used by both pages;
-  - `vendor/` marked and DOMPurify.
+  - `vendor/` built by `npm run vendor` (`scripts/vendor.mjs`) from pinned
+    devDependencies — never edited by hand: `markdown-kit.js` (the libraries, entry
+    `scripts/markdown-kit.entry.js`), `mermaid/` (ESM, one chunk per diagram type,
+    loaded only when a document has a diagram), `purify.min.js`, `highlight.css`.
+    It also regenerates `THIRD_PARTY_NOTICES.md`; CI fails if either is out of date.
 - Tests: `test/`, run with `npm test` — vitest in `workerd` against a real local D1 with
   the real `migrations/` applied. `test/e2e/` runs the page scripts in Chrome against
   `wrangler dev` (`npm run test:e2e`); both run in CI and before deploy.
@@ -56,6 +62,11 @@ and not a secret store — see `../secret.airat.top` for that.
 - Every read of a share filters `expires_at > now`; the hourly cron only reclaims space.
 - Markdown that reaches the DOM goes through `renderMarkdown` (DOMPurify). This covers
   the editor too, because "Open in editor" loads someone else's document there.
+- Mermaid runs with `securityLevel: "strict"`, SVG-text labels (no `foreignObject`), and
+  `secure` keys a diagram's `%%{init}%%` cannot override (`themeCSS`, `htmlLabels` among
+  them); its SVG is sanitised again with DOMPurify's SVG profile before insertion.
+- Mermaid is built from its ESM sources, not copied from its dist, so its dependencies
+  take the versions and `overrides` pinned here (its dist bundled a vulnerable lodash-es).
 - Rendered markdown can carry any id. `SANITIZE_NAMED_PROPS` prefixes them with
   `user-content-`, and page scripts look their controls up before rendering, dialog
   controls inside the dialog. A document once published the draft through

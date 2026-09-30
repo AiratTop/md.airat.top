@@ -30,18 +30,27 @@ const shareResultHeading = inDialog("shareResultHeading");
 
 const SAMPLE = `# Markdown Live Preview
 
-Write on the left. See the preview on the right.
+Write on the left. See the preview on the right. **Share** gives you a link for 24 hours.
 
 ## Quick cheatsheet
-- **Bold** and *italic*
-- Lists, links, and code
-- Tables and blockquotes
+- **Bold**, *italic*, ~~strikethrough~~, ==highlight==
+- H~2~O and 19^th^, footnotes[^1] and :sparkles: emoji
+- Tables, quotes, links and code with highlighting
+
+- [x] Task lists
+- [ ] Your next document
 
 ### Code block
-~~~js
+\`\`\`js
 const greet = (name) => "Hello, " + name + "!";
 console.log(greet("md.airat.top"));
-~~~
+\`\`\`
+
+### Diagram
+\`\`\`mermaid
+graph LR
+  Write --> Preview --> Share
+\`\`\`
 
 > Tip: Toggle Sync Scroll to keep both panes aligned.
 
@@ -52,13 +61,19 @@ console.log(greet("md.airat.top"));
 | Sync scroll | Optional |
 
 [Project repo](https://github.com/AiratTop/md.airat.top)
+
+[^1]: Footnotes collect at the end of the document.
 `;
 
 let storageWarned = false;
+let diagramTimer = null;
 
 const updatePreview = () => {
   const markdown = textarea.value;
   preview.innerHTML = renderMarkdown(markdown);
+  // Diagrams are drawn once typing pauses: mid-edit, a diagram rarely parses.
+  clearTimeout(diagramTimer);
+  diagramTimer = setTimeout(() => renderDiagrams(preview), 300);
   if (!setStored(STORAGE_KEYS.content, markdown) && !storageWarned) {
     storageWarned = true;
     showStatus("Browser storage is full or blocked: this draft will not survive a reload", 6000);
@@ -94,6 +109,11 @@ const storedSplit = getStored(STORAGE_KEYS.split, "");
 const storedSync = getStored(STORAGE_KEYS.sync, "true");
 
 initTheme(darkToggle);
+// Diagrams are drawn in the theme's colours, so a theme change redraws them.
+new MutationObserver(() => updatePreview()).observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ["data-theme"],
+});
 syncToggle.checked = storedSync !== "false";
 if (storedSplit) {
   splitPane.style.setProperty("--split-left", storedSplit);
