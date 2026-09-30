@@ -11,6 +11,8 @@ const darkToggle = document.getElementById("darkMode");
 const splitPane = document.getElementById("splitPane");
 const dragHandle = document.getElementById("dragHandle");
 const shareDialog = document.getElementById("shareDialog");
+const exportBtn = document.getElementById("exportBtn");
+const exportMenu = document.getElementById("exportMenu");
 const inDialog = (id) => shareDialog.querySelector(`#${id}`);
 const shareConfirm = inDialog("shareConfirm");
 const shareResult = inDialog("shareResult");
@@ -355,3 +357,5 @@ shareDialog.addEventListener("click", (event) => {
     shareDialog.close();
   }
 });
+
+setupExport({ button: exportBtn, menu: exportMenu, getMarkdown: () => textarea.value });
