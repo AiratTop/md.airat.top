@@ -19,7 +19,9 @@ links that delete themselves after 24 hours. Runs on Cloudflare Workers with a D
     blocks (a dollar next to a digit or a space stays a dollar, so prices are safe);
   - footnotes, subscript (`H~2~O`) and superscript (`19^th^`), `==highlight==`,
     `++inserted++` text, abbreviations, definition lists and `:emoji:` shortcodes;
-  - YAML front matter, shown as a table.
+  - YAML front matter, shown as a table;
+  - GitHub alerts: `> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`.
+- A first visit (and **Reset**) opens a tour of all of it, kept in `public_html/sample.md`.
 - Split layout: editor on the left, preview on the right.
 - Sync scroll, reset, and copy actions.
 - Dark mode based on browser settings with manual override.
