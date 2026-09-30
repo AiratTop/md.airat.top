@@ -34,6 +34,7 @@ const md = new MarkdownIt({
   .use(plugins.ins)
   .use(plugins.abbr)
   .use(plugins.deflist)
+  .use(plugins.alerts) // > [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]
   .use(plugins.frontMatter, () => {})
   // Math: $inline$, $$display$$ and ```math fences. Conservative about dollars — no space
   // inside the delimiters, no digit next to them — so "$5 and $10" stays prose. The
