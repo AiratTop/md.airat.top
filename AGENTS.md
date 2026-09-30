@@ -36,7 +36,8 @@ and not a secret store — see `../secret.airat.top` for that.
   - `common.js` storage, theme, delete tokens, date formatting, used by both pages;
   - `analytics.js` the GA counter; `vendor/` marked and DOMPurify.
 - Tests: `test/`, run with `npm test` — vitest in `workerd` against a real local D1 with
-  the real `migrations/` applied.
+  the real `migrations/` applied. `test/e2e/` runs the page scripts in Chrome against
+  `wrangler dev` (`npm run test:e2e`, analytics stubbed); both run in CI and before deploy.
 
 ## URLs
 - `/` the editor — the only indexable page.
@@ -56,6 +57,15 @@ and not a secret store — see `../secret.airat.top` for that.
 - Every read of a share filters `expires_at > now`; the hourly cron only reclaims space.
 - Markdown that reaches the DOM goes through `renderMarkdown` (DOMPurify). This covers
   the editor too, because "Open in editor" loads someone else's document there.
+- Rendered markdown can carry any id. `SANITIZE_NAMED_PROPS` prefixes them with
+  `user-content-`, and page scripts look their controls up before rendering, dialog
+  controls inside the dialog. A document once published the draft through
+  `<a id="shareCreate">`; `test/e2e` guards it.
+- Analytics sees page views and nothing from the text. `analytics.js` loads before
+  gtag.js and stops clicks inside `.preview` in the window capture phase, because GA's
+  enhanced measurement otherwise reports every clicked outbound or download link in full
+  (`link_url`). Outbound clicks, file downloads and form interactions should also be off
+  in the GA property.
 - No inline script on any page: the CSP in `src/http.js` forbids it. That is why the GA
   snippet lives in `analytics.js`.
 - Shared pages must not leak their URL: `Referrer-Policy: no-referrer`, and `analytics.js`
@@ -71,7 +81,13 @@ and not a secret store — see `../secret.airat.top` for that.
   binding). Reading is not metered. If D1 ever fills, creates fail until the oldest shares
   expire — reads are unaffected and it heals itself within 24 hours.
 - Delete tokens are stored only as SHA-256; the creator's browser keeps the token in
-  localStorage (`md-preview-shares`) for "Delete now".
+  localStorage (`md-preview-shares`) for "Delete now", with a SHA-256 of the text so that
+  sharing the same text again offers the existing link (checked with a HEAD to `.md`).
+  Deduplication is per browser on purpose: a server-side content lookup would tell
+  anyone whether a given text had been shared.
+- Storage can fail (quota, private mode). `setStored` returns whether it worked; the
+  editor warns once when the draft cannot be saved, the dialog deletes with the token it
+  holds in memory, and "Open in editor" stays put rather than open an empty editor.
 - `shareTitle` runs server-side on every view of up to 256 KB of someone else's text:
   it scans line by line and cuts each line short before any pattern sees it, because the
   heading pattern backtracks quadratically on long runs of spaces. Keep new title or

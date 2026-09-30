@@ -18,22 +18,28 @@ const getStored = (key, fallback) => {
   }
 };
 
+// Returns whether the value was stored. Storage fails in some private modes and when
+// the quota is full; callers that lose something the user cares about must say so.
 const setStored = (key, value) => {
   try {
     localStorage.setItem(key, value);
+    return true;
   } catch (error) {
-    // Ignore storage errors (private mode, etc.)
+    return false;
   }
 };
 
-const showStatus = (message) => {
-  const statusEl = document.getElementById("status");
+// Looked up once, now: this script runs before any markdown is rendered, so a document
+// with its own id="status" cannot stand in for it.
+const statusEl = document.getElementById("status");
+
+const showStatus = (message, duration = 1600) => {
   statusEl.textContent = message;
   statusEl.classList.add("is-visible");
   clearTimeout(showStatus.timer);
   showStatus.timer = setTimeout(() => {
     statusEl.classList.remove("is-visible");
-  }, 1600);
+  }, duration);
 };
 
 const copyText = async (value) => {
@@ -84,8 +90,10 @@ const initTheme = (darkToggle) => {
   });
 };
 
-// Delete tokens for the shares this browser created, so "Delete now" works from the
-// share dialog and from the shared page itself. Expired entries are dropped on read.
+// The shares this browser created: the delete token, so "Delete now" works from the
+// share dialog and from the shared page itself, and a hash of the text, so sharing the
+// same text again offers the link that already exists. Expired entries are dropped on
+// read.
 const readShareTokens = () => {
   let tokens = {};
   try {
@@ -102,10 +110,34 @@ const readShareTokens = () => {
   return tokens;
 };
 
-const saveShareToken = (id, deleteToken, expiresAt) => {
+// Returns whether it was stored; the dialog still holds the token in memory if not.
+const saveShareToken = (share, contentHash) => {
   const tokens = readShareTokens();
-  tokens[id] = { deleteToken, expiresAt };
-  setStored(STORAGE_KEYS.shares, JSON.stringify(tokens));
+  tokens[share.id] = {
+    deleteToken: share.deleteToken,
+    expiresAt: share.expiresAt,
+    hash: contentHash,
+    url: share.url,
+    markdownUrl: share.markdownUrl,
+    jsonUrl: share.jsonUrl,
+  };
+  return setStored(STORAGE_KEYS.shares, JSON.stringify(tokens));
+};
+
+// The live share of exactly this text, if this browser made one.
+const findShareByHash = (contentHash) => {
+  for (const [id, entry] of Object.entries(readShareTokens())) {
+    if (entry.hash === contentHash && entry.url) {
+      return { id, ...entry };
+    }
+  }
+  return null;
+};
+
+// SHA-256 of the text, hex. Only ever stored in this browser.
+const hashText = async (text) => {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
 const forgetShareToken = (id) => {
@@ -114,15 +146,16 @@ const forgetShareToken = (id) => {
   setStored(STORAGE_KEYS.shares, JSON.stringify(tokens));
 };
 
-const deleteShare = async (id) => {
-  const entry = readShareTokens()[id];
-  if (!entry) {
+// The token can come from the caller (the dialog keeps it in memory, which works even
+// when storage does not) or from storage.
+const deleteShare = async (id, deleteToken = readShareTokens()[id]?.deleteToken) => {
+  if (!deleteToken) {
     return false;
   }
   const response = await fetch(`/api/shares/${id}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deleteToken: entry.deleteToken }),
+    body: JSON.stringify({ deleteToken }),
   });
   // 404 means it is already gone, which is what was asked for.
   if (response.ok || response.status === 404) {

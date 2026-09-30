@@ -44,12 +44,12 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="icon" href="/favicon.ico">
     <link rel="manifest" href="/site.webmanifest">
-    <!-- GoogleAnalytics counter (config in analytics.js: the CSP allows no inline script) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CVEGGNPJXK"></script>
+    <!-- GoogleAnalytics counter. analytics.js first: it guards clicks before gtag.js can listen -->
     <script src="/analytics.js"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CVEGGNPJXK"></script>
     <!-- /GoogleAnalytics counter -->
   </head>
-  <body>
+  <body class="editor">
     <div class="backdrop">
       <header class="topbar">
         <div class="brand">
@@ -121,12 +121,20 @@
           </div>
         </div>
         <div class="dialog__body" id="shareResult" hidden>
-          <h2>Link created</h2>
+          <h2 id="shareResultHeading">Link created</h2>
+          <p class="dialog__note" id="shareReused" hidden>
+            You already shared this exact text, so here is the same link. It keeps its
+            original expiry.
+          </p>
           <div class="share-link">
             <input id="shareUrl" type="text" readonly aria-label="Share link" />
             <button class="btn" type="button" id="shareCopy">Copy</button>
           </div>
           <p class="dialog__note">Deleted automatically on <strong id="shareExpiry"></strong>.</p>
+          <p class="dialog__note" id="shareTokenNote" hidden>
+            This browser's storage is blocked, so <strong>Delete now</strong> works only
+            until you close this page.
+          </p>
           <p class="dialog__links">
             <a id="shareOpen" target="_blank" rel="noopener">Open</a>
             ·
@@ -136,6 +144,7 @@
           </p>
           <div class="dialog__actions">
             <button class="btn btn--ghost btn--danger" type="button" id="shareDelete">Delete now</button>
+            <button class="btn btn--ghost" type="button" id="shareNew" hidden>New link</button>
             <button class="btn" type="button" data-close>Done</button>
           </div>
         </div>

@@ -157,7 +157,7 @@ describe("the editor", () => {
     for (const [script, page] of [["/app.js", "/"], ["/view.js", `/${newId()}`], ["/common.js", "/"]]) {
       const source = await (await call(script)).text();
       const html = await (await call(page)).text();
-      for (const [, id] of source.matchAll(/getElementById\("([^"]+)"\)/g)) {
+      for (const [, id] of source.matchAll(/(?:getElementById|inDialog)\("([^"]+)"\)/g)) {
         expect(html, `#${id} used by ${script} is missing from ${page}`).toContain(`id="${id}"`);
       }
     }

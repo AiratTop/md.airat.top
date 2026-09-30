@@ -22,7 +22,8 @@ links that delete themselves after 24 hours. Runs on Cloudflare Workers with a D
   - `https://md.airat.top/{id}.json`: the markdown plus its metadata.
 
   Anyone with the link can read it. It is deleted automatically after 24 hours, and the
-  author can delete it earlier.
+  author can delete it earlier. Sharing the same text again from the same browser offers
+  the existing link; change a single character and you get a new one.
 
 ## Share links
 
@@ -77,13 +78,14 @@ npm install
 npm run db:migrate:local
 npm run dev          # http://localhost:8787
 npm test             # vitest in workerd against a local D1
+npm run test:e2e     # the page scripts in Chrome against wrangler dev
 npm run typecheck
 ```
 
 ## Deployment
 
-A push to `main` runs `.github/workflows/deploy.yml`, which tests, typechecks, applies D1
-migrations and deploys with `wrangler deploy`. It needs the repository secrets
+A push to `main` runs `.github/workflows/deploy.yml`, which runs both test suites and the
+typecheck, applies D1 migrations and deploys with `wrangler deploy`. It needs the repository secrets
 `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit, D1:Edit) and `CLOUDFLARE_ACCOUNT_ID`.
 
 First-time setup: `npm run db:create`, then put the printed `database_id` into

@@ -61,7 +61,10 @@ if (!share) {
     ) {
       return;
     }
-    setStored(STORAGE_KEYS.content, share.content);
+    if (!setStored(STORAGE_KEYS.content, share.content)) {
+      showStatus("Browser storage is blocked, so the editor cannot receive this document. Use Copy and paste it instead.", 6000);
+      return;
+    }
     location.href = "/";
   });
 
