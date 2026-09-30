@@ -20,13 +20,13 @@ Thank you for your interest in improving the Markdown Live Preview app at md.air
 1. Fork the repository and clone your fork locally.
 2. Create a feature branch that describes your work (for example, `feature/better-shortcuts`).
 3. Make your changes and keep commits scoped and meaningful.
-4. Validate the changes locally with `npm install`, `npm run db:migrate:local` and `npm run dev`, and run `npm test` and `npm run typecheck`.
+4. Validate the changes locally with `npm install`, `npm run db:migrate:local` and `npm run dev`, and run `npm test`, `npm run test:e2e` (needs Chrome) and `npm run typecheck`.
 5. Check both light and dark modes, and verify layout on narrow screens.
 6. Open a pull request against the `main` branch and describe what changed and how you verified it.
 
 ## Pull Request Checklist
 
-- [ ] `npm test` and `npm run typecheck` pass.
+- [ ] `npm test`, `npm run test:e2e` and `npm run typecheck` pass.
 - [ ] No console errors in the browser.
 - [ ] Changes are tested in at least one modern browser.
 - [ ] UI changes behave well on small screens and in dark mode.
