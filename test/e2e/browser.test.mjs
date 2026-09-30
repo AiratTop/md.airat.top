@@ -345,3 +345,16 @@ test("math renders with KaTeX; prices stay prose and untrusted commands stay out
   assert.equal(found.links, 0, "\\href must not produce a link");
   await context.close();
 });
+
+test("a first visit opens the tour from sample.md, and Reset brings it back", async () => {
+  const { page, context } = await openPage("/");
+  await page.waitForFunction(() => document.getElementById("markdownInput").value.startsWith("---"));
+  assert.equal(await page.locator("#preview table.front-matter").count(), 1);
+  assert.equal(await page.locator("#preview .markdown-alert-note").count(), 1);
+  const tour = await page.inputValue("#markdownInput");
+
+  await page.fill("#markdownInput", "my own text");
+  await page.click("#resetBtn"); // the confirm is accepted by openPage
+  await page.waitForFunction((text) => document.getElementById("markdownInput").value === text, tour);
+  await context.close();
+});

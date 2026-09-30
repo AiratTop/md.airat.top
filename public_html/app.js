@@ -28,43 +28,19 @@ const shareReused = inDialog("shareReused");
 const shareTokenNote = inDialog("shareTokenNote");
 const shareResultHeading = inDialog("shareResultHeading");
 
-const SAMPLE = `# Markdown Live Preview
-
-Write on the left. See the preview on the right. **Share** gives you a link for 24 hours.
-
-## Quick cheatsheet
-- **Bold**, *italic*, ~~strikethrough~~, ==highlight==
-- H~2~O and 19^th^, footnotes[^1] and :sparkles: emoji
-- Tables, quotes, links and code with highlighting
-- Math: $E = mc^2$ inline, or a \\$\\$ block
-
-- [x] Task lists
-- [ ] Your next document
-
-### Code block
-\`\`\`js
-const greet = (name) => "Hello, " + name + "!";
-console.log(greet("md.airat.top"));
-\`\`\`
-
-### Diagram
-\`\`\`mermaid
-graph LR
-  Write --> Preview --> Share
-\`\`\`
-
-> Tip: Toggle Sync Scroll to keep both panes aligned.
-
-| Feature | Status |
-| --- | --- |
-| Live preview | Ready |
-| Dark mode | On |
-| Sync scroll | Optional |
-
-[Project repo](https://github.com/AiratTop/md.airat.top)
-
-[^1]: Footnotes collect at the end of the document.
-`;
+// The tour shown on a first visit and by Reset lives in sample.md, where it is plain
+// markdown to edit rather than a string full of escaped backticks.
+let sampleText = null;
+const loadSample = async () => {
+  if (sampleText === null) {
+    const response = await fetch("/sample.md");
+    if (!response.ok) {
+      throw new Error(`sample.md: ${response.status}`);
+    }
+    sampleText = await response.text();
+  }
+  return sampleText;
+};
 
 let storageWarned = false;
 let diagramTimer = null;
@@ -120,7 +96,13 @@ syncToggle.checked = storedSync !== "false";
 if (storedSplit) {
   splitPane.style.setProperty("--split-left", storedSplit);
 }
-setContent(storedContent === null ? SAMPLE : storedContent);
+if (storedContent === null) {
+  loadSample()
+    .then(setContent)
+    .catch(() => setContent("# Markdown Live Preview\n\nWrite on the left, see it on the right."));
+} else {
+  setContent(storedContent);
+}
 
 textarea.addEventListener("input", () => {
   updatePreview();
@@ -141,12 +123,17 @@ preview.addEventListener("scroll", () => {
   }
 });
 
-resetBtn.addEventListener("click", () => {
+resetBtn.addEventListener("click", async () => {
   const draft = textarea.value;
-  if (draft.trim() && draft !== SAMPLE && !confirm("Replace your text with the sample? Your current text will be lost.")) {
+  if (draft.trim() && draft !== sampleText && !confirm("Replace your text with the sample? Your current text will be lost.")) {
     return;
   }
-  setContent(SAMPLE);
+  try {
+    setContent(await loadSample());
+  } catch (error) {
+    showStatus("Could not load the sample. Check your connection.");
+    return;
+  }
   showStatus("Reset to sample markdown");
 });
 

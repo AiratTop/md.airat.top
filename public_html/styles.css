@@ -428,6 +428,71 @@ textarea {
   background: transparent;
 }
 
+.preview kbd {
+  display: inline-block;
+  padding: 0.05em 0.45em;
+  font-family: "JetBrains Mono", "Fira Code", "IBM Plex Mono", monospace;
+  font-size: 0.82em;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.preview details {
+  margin: 0 0 1em;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.preview details > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.preview details[open] > summary {
+  margin-bottom: 0.6em;
+}
+
+/* GitHub-style alerts: > [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION] */
+.preview .markdown-alert {
+  --alert: var(--accent);
+  margin: 0 0 1em;
+  padding: 10px 16px;
+  border-left: 4px solid var(--alert);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--alert) 10%, transparent);
+}
+
+.preview .markdown-alert > :last-child {
+  margin-bottom: 0;
+}
+
+.preview .markdown-alert-title {
+  font-weight: 600;
+  color: var(--alert);
+  margin-bottom: 0.3em;
+}
+
+.preview .markdown-alert-tip {
+  --alert: #2da44e;
+}
+
+.preview .markdown-alert-important {
+  --alert: #8250df;
+}
+
+.preview .markdown-alert-warning {
+  --alert: #bf8700;
+}
+
+.preview .markdown-alert-caution {
+  --alert: #cf222e;
+}
+
 .preview .math-tex.is-display {
   margin: 0 0 1.1em;
   overflow-x: auto;
