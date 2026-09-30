@@ -102,6 +102,12 @@ describe("shareTitle", () => {
     expect(shareTitle("```\n\n```")).toBe("Shared markdown");
   });
 
+  it("prefers the front-matter title", () => {
+    expect(shareTitle('---\ntitle: "Welcome to Markdown Viewer"\nauthor: x\n---\n\n# Heading')).toBe("Welcome to Markdown Viewer");
+    expect(shareTitle("---\nauthor: x\n---\n\n# Heading")).toBe("Heading");
+    expect(shareTitle("Intro\n---\ntitle: not front matter\n---")).toBe("Intro");
+  });
+
   it("keeps a long title short", () => {
     const title = shareTitle(`# ${"word ".repeat(60)}`);
     expect(title.length).toBeLessThanOrEqual(90);

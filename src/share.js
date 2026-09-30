@@ -27,13 +27,29 @@ const MAX_TITLE_LENGTH = 90;
 const MAX_SCANNED_LINE = 400;
 
 /**
- * A title for the page and for link previews: the first heading, else the first line
- * with text in it, with the markdown punctuation taken off.
+ * `title:` from YAML front matter, if the document opens with a `---` block that has one.
+ * The editor renders front matter as a table, so its title is the document's title.
+ */
+function frontMatterTitle(lines) {
+  if (lines[0]?.trimEnd() !== "---") return null;
+  for (const raw of lines.slice(1, 200)) {
+    const line = raw.slice(0, MAX_SCANNED_LINE).trimEnd();
+    if (line === "---" || line === "...") return null;
+    const match = /^title:[ \t]*(.+)$/.exec(line);
+    if (match) return match[1].trim().replace(/^(["'])(.*)\1$/, "$2") || null;
+  }
+  return null;
+}
+
+/**
+ * A title for the page and for link previews: the front-matter title, else the first
+ * heading, else the first line with text in it, with the markdown punctuation taken off.
  */
 export function shareTitle(content) {
-  let heading = /** @type {string | null} */ (null);
+  const lines = content.split("\n");
+  let heading = frontMatterTitle(lines);
   let fallback = /** @type {string | null} */ (null);
-  for (const raw of content.split("\n")) {
+  for (const raw of heading === null ? lines : []) {
     const candidate = raw.slice(0, MAX_SCANNED_LINE);
     const match = /^ {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(candidate);
     if (match) {

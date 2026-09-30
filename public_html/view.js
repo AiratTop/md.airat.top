@@ -38,7 +38,16 @@ if (!share) {
   // The document's own title stays in <title> and the link preview; showing it in the
   // header as well would repeat the heading the document usually opens with.
   docTitle.textContent = "Shared markdown";
-  preview.innerHTML = renderMarkdown(share.content);
+  const render = () => {
+    preview.innerHTML = renderMarkdown(share.content);
+    renderDiagrams(preview);
+  };
+  render();
+  // Diagrams are drawn in the theme's colours, so a theme change redraws them.
+  new MutationObserver(render).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
   rawLink.href = share.markdownUrl;
   deleteBtn.hidden = !readShareTokens()[share.id];
   docControls.hidden = false;

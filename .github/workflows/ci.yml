@@ -45,3 +45,7 @@ jobs:
       # Chrome is preinstalled on GitHub's Ubuntu runners; the suite starts wrangler dev
       # against a local D1, so it needs no credential and no network.
       - run: npm run test:e2e
+      # public_html/vendor/ and THIRD_PARTY_NOTICES.md are built from package.json and
+      # committed; a rebuild that changes them means someone forgot `npm run vendor`.
+      - name: vendor is up to date
+        run: npm run vendor && git diff --exit-code -- public_html/vendor THIRD_PARTY_NOTICES.md
