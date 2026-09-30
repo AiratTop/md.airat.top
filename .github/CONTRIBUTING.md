@@ -40,7 +40,7 @@ Thank you for your interest in improving the Markdown Live Preview app at md.air
 
 ## Security and Responsible Disclosure
 
-If you discover a security vulnerability, please do not open a public issue. Instead, email [mail@airat.top](mailto:mail@airat.top) with the details so it can be addressed promptly.
+If you discover a security vulnerability, please do not open a public issue. See [SECURITY.md](../SECURITY.md) for what is in scope and how to report it.
 
 ## Questions or Feedback
 

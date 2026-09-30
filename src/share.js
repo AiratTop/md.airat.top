@@ -19,14 +19,31 @@ const FALLBACK_TITLE = "Shared markdown";
 const MAX_TITLE_LENGTH = 90;
 
 /**
+ * How much of each line the title patterns may look at. A title is a short thing, and
+ * the heading pattern backtracks quadratically over a long run of spaces: run over the
+ * whole document it took a second for 20 KB of them, and a 256 KB share built that way
+ * would have cost minutes of CPU on every view.
+ */
+const MAX_SCANNED_LINE = 400;
+
+/**
  * A title for the page and for link previews: the first heading, else the first line
  * with text in it, with the markdown punctuation taken off.
  */
 export function shareTitle(content) {
-  const heading = /^ {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/m.exec(content);
-  const line = heading ? heading[1] : content.split("\n").find((candidate) => /[\p{L}\p{N}]/u.test(candidate)) ?? "";
+  let heading = /** @type {string | null} */ (null);
+  let fallback = /** @type {string | null} */ (null);
+  for (const raw of content.split("\n")) {
+    const candidate = raw.slice(0, MAX_SCANNED_LINE);
+    const match = /^ {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(candidate);
+    if (match) {
+      heading = match[1];
+      break;
+    }
+    if (fallback === null && /[\p{L}\p{N}]/u.test(candidate)) fallback = candidate;
+  }
 
-  const plain = line
+  const plain = (heading ?? fallback ?? "")
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1") // links and images keep their text
     .replace(/<[^>]*>/g, "")
     .replace(/[*_`~#>|]/g, "")

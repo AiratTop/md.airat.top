@@ -163,3 +163,30 @@ describe("the editor", () => {
     }
   });
 });
+
+describe("hostile input", () => {
+  /**
+   * The heading pattern backtracks quadratically on a long run of spaces. Run over the
+   * whole document, 20 KB of them took a second; 256 KB would have taken minutes of CPU
+   * on every view of the share.
+   */
+  it("finds a title in linear time", () => {
+    const spaces = " ".repeat(256 * 1024);
+    for (const content of [`# a${spaces}b`, `# a${" \t".repeat(128 * 1024)}b`, `x\n${"[a](".repeat(64 * 1024)}`]) {
+      const started = performance.now();
+      shareTitle(content);
+      expect(performance.now() - started).toBeLessThan(200);
+    }
+  });
+
+  it("still finds a heading after a very long line", () => {
+    expect(shareTitle(`${"x".repeat(100_000)}\n## Later heading`)).toBe("Later heading");
+  });
+
+  it("escapes a title written into an attribute", async () => {
+    const share = await create('# a" autofocus onfocus="alert(1)');
+    const html = await (await call(`/${share.id}`)).text();
+    expect(html).not.toContain('content="a" autofocus');
+    expect(html).toMatch(/<meta property="og:title" content="a&quot; autofocus onfocus=&quot;alert\(1\)"/);
+  });
+});
