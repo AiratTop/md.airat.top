@@ -20,7 +20,31 @@ import deflist from "markdown-it-deflist";
 import { dollarmathPlugin as math } from "markdown-it-dollarmath";
 import alerts from "markdown-it-github-alerts";
 import hljs from "highlight.js/lib/common";
+import apache from "highlight.js/lib/languages/apache";
+import cmake from "highlight.js/lib/languages/cmake";
+import dart from "highlight.js/lib/languages/dart";
+import dockerfile from "highlight.js/lib/languages/dockerfile";
+import dos from "highlight.js/lib/languages/dos";
+import elixir from "highlight.js/lib/languages/elixir";
+import groovy from "highlight.js/lib/languages/groovy";
+import haskell from "highlight.js/lib/languages/haskell";
+import http from "highlight.js/lib/languages/http";
+import latex from "highlight.js/lib/languages/latex";
+import matlab from "highlight.js/lib/languages/matlab";
+import nginx from "highlight.js/lib/languages/nginx";
+import powershell from "highlight.js/lib/languages/powershell";
+import protobuf from "highlight.js/lib/languages/protobuf";
+import scala from "highlight.js/lib/languages/scala";
 import { load as loadYaml } from "js-yaml";
+
+// highlight.js's common set (36 languages, SQL, JSON and YAML among them) plus the ones
+// most often missed in READMEs and ops notes. Not the full set: all 193 would triple
+// markdown-kit.js, which every page loads, for languages hardly anyone writes.
+const EXTRA_LANGUAGES = {
+  apache, cmake, dart, dockerfile, dos, elixir, groovy, haskell, http, latex, matlab, nginx,
+  powershell, protobuf, scala
+};
+for (const [name, language] of Object.entries(EXTRA_LANGUAGES)) hljs.registerLanguage(name, language);
 
 export const escapeHtml = (value) =>
   String(value).replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);

@@ -117,6 +117,10 @@ and not a secret store — see `../secret.airat.top` for that.
   import is aliased to the shim in `wrangler.jsonc`, `vitest.config.ts` and `vendor.mjs`.
 - Export file names are `<title>_<YYYY-MM-DD>_<HH-MM-SS>.<ext>` in local time: letters,
   digits, `-` and `_` only, and two exports never overwrite each other.
+- Code highlighting is highlight.js's common set (36 languages) plus `EXTRA_LANGUAGES` in
+  `src/markdown.js` (15 more, the ones most often missed). Not the full build: its 193
+  languages would triple `markdown-kit.js`, which every page loads. Add a language there,
+  then `npm run vendor`; `test/html.test.ts` lists what must highlight.
 - Share lifetime is fixed at 24 hours (`SHARE_TTL_MS`). Content cap 256 KB of UTF-8,
   repeated in `app.js` as `MAX_SHARE_BYTES`; `test/limits.test.ts` keeps them equal.
 - Creating is rate limited per IPv4 address or IPv6 /64 (`src/address.js`), 30/minute

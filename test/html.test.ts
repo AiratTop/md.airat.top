@@ -123,6 +123,37 @@ describe("server-side cleaning", () => {
     expect(html).not.toContain('href="https://example.com"');
   });
 
+  it("highlights the common languages and the extra ones, by name and alias", async () => {
+    const samples: Record<string, string> = {
+      sql: "SELECT id FROM users WHERE active = 1;",
+      json: '{"a": [1, true, null]}',
+      yaml: "key: value",
+      typescript: "const x: number = 1;",
+      dockerfile: "FROM node:22\nRUN npm ci",
+      docker: "FROM node:22",
+      nginx: "server { listen 80; }",
+      apache: "<VirtualHost *:80>\n  ServerName a\n</VirtualHost>",
+      powershell: "Get-ChildItem -Path C:\\",
+      ps1: "$x = 1",
+      bat: "@echo off\nset X=1",
+      cmake: "cmake_minimum_required(VERSION 3.20)",
+      http: "GET / HTTP/1.1\nHost: example.com",
+      protobuf: "message A { string b = 1; }",
+      dart: "void main() { print('hi'); }",
+      scala: "object A { def f = 1 }",
+      groovy: "def x = 1",
+      elixir: "defmodule A do\nend",
+      haskell: "main = putStrLn \"hi\"",
+      latex: "\\section{Intro}",
+      tex: "\\begin{document}",
+      matlab: "x = zeros(3);"
+    };
+    for (const [language, code] of Object.entries(samples)) {
+      const html = await fragment("```" + language + "\n" + code + "\n```");
+      expect(html, language).toMatch(/class="hljs-/);
+    }
+  });
+
   it("leaves diagrams as their source", async () => {
     const html = await fragment("```mermaid\ngraph LR\n  A --> B\n```");
     expect(html).toContain('<pre class="mermaid-source"><code>graph LR');
