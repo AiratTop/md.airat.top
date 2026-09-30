@@ -105,6 +105,7 @@ describe("reading a share", () => {
       url: share.url,
       markdownUrl: share.markdownUrl,
       jsonUrl: share.jsonUrl,
+      htmlUrl: share.htmlUrl,
       title: "Weekly notes",
       sizeBytes: share.sizeBytes,
       createdAt: share.createdAt,

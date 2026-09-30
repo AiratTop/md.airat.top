@@ -20,6 +20,12 @@ import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-worker
 const migrations = await readD1Migrations(fileURLToPath(new URL("./migrations", import.meta.url)));
 
 export default defineConfig({
+  // The same alias as `alias` in wrangler.jsonc: the test runner resolves modules itself.
+  resolve: {
+    alias: {
+      "markdown-it/lib/common/utils.js": fileURLToPath(new URL("./scripts/markdown-it-utils.shim.js", import.meta.url))
+    }
+  },
   plugins: [
     cloudflareTest({
       wrangler: { configPath: "./wrangler.jsonc" },

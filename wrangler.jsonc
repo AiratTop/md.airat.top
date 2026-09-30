@@ -6,6 +6,13 @@
   "workers_dev": false,
   "observability": { "enabled": true },
 
+  // markdown-it-dollarmath (written for markdown-it 13) imports a file markdown-it 15 no
+  // longer ships; the shim hands it markdown-it's own escapeHtml. Same as in
+  // scripts/vendor.mjs and vitest.config.ts.
+  "alias": {
+    "markdown-it/lib/common/utils.js": "./scripts/markdown-it-utils.shim.js"
+  },
+
   "vars": {
     "SITE_HOST": "md.airat.top"
   },

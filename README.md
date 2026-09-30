@@ -32,7 +32,9 @@ links that delete themselves after 24 hours. Runs on Cloudflare Workers with a D
 - **Share** creates a temporary link to a snapshot of your text:
   - `https://md.airat.top/{id}`: the rendered document;
   - `https://md.airat.top/{id}.md`: the raw markdown, for curl, scripts and LLMs;
-  - `https://md.airat.top/{id}.json`: the markdown plus its metadata.
+  - `https://md.airat.top/{id}.json`: the markdown plus its metadata;
+  - `https://md.airat.top/{id}.html`: the document rendered on the server as plain HTML
+    (math included; diagrams stay as their source, since drawing them needs a browser).
 
   Anyone with the link can read it. It is deleted automatically after 24 hours, and the
   author can delete it earlier. Sharing the same text again from the same browser offers
@@ -67,6 +69,7 @@ curl -s https://md.airat.top/api/shares \
   "url": "https://md.airat.top/01M3QS5R0MCCT5HB5SP8N6YM61",
   "markdownUrl": "https://md.airat.top/01M3QS5R0MCCT5HB5SP8N6YM61.md",
   "jsonUrl": "https://md.airat.top/01M3QS5R0MCCT5HB5SP8N6YM61.json",
+  "htmlUrl": "https://md.airat.top/01M3QS5R0MCCT5HB5SP8N6YM61.html",
   "sizeBytes": 38,
   "createdAt": "2026-09-29T23:49:35.380Z",
   "expiresAt": "2026-09-30T23:49:35.380Z",
@@ -75,8 +78,9 @@ curl -s https://md.airat.top/api/shares \
 ```
 
 ```bash
-# Read it back
+# Read it back, raw or rendered
 curl -s https://md.airat.top/01M3QS5R0MCCT5HB5SP8N6YM61.md
+curl -s https://md.airat.top/01M3QS5R0MCCT5HB5SP8N6YM61.html
 
 # Delete it early
 curl -s -X DELETE https://md.airat.top/api/shares/01M3QS5R0MCCT5HB5SP8N6YM61 \

@@ -10,7 +10,7 @@ import { MAX_CONTENT_BYTES } from "./limits.js";
 
 const HSTS = "max-age=63072000";
 
-const SHARE_HEADERS = {
+export const SHARE_HEADERS = {
   "X-Robots-Tag": "noindex, nofollow, noarchive",
   "Cache-Control": "no-store, max-age=0",
   // A shared document's URL is its only access control, and a link clicked inside the

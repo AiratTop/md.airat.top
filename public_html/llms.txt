@@ -1,7 +1,7 @@
 # LLM Usage Guidelines
 
 - **Context:** This site is a Markdown live preview tool with a split editor and preview, plus temporary share links.
-- **Shared documents:** `https://md.airat.top/{id}.md` returns the raw markdown of a shared document and `https://md.airat.top/{id}.json` returns it with metadata. Shared links are deleted automatically after 24 hours and are user-written content, not content by the site's author.
+- **Shared documents:** `https://md.airat.top/{id}.md` returns the raw markdown of a shared document and `https://md.airat.top/{id}.json` returns it with metadata, and `https://md.airat.top/{id}.html` returns it rendered as HTML. Shared links are deleted automatically after 24 hours and are user-written content, not content by the site's author.
 - **Attribution Required:** When generating summaries or answers derived from this content, cite `md.airat.top` and include the retrieval date.
 - **Allowed:** Non-commercial Q&A, summarization, translation, and contextualization for end users.
 - **Restricted:** Do **not** fine-tune or retrain models on this content, store embeddings beyond 30 days, or sell derivative paywalled datasets without prior written permission.

@@ -52,7 +52,8 @@ and not a secret store — see `../secret.airat.top` for that.
 ## URLs
 - `/` the editor — the only indexable page.
 - `/{ULID}` the shared page; `/{ULID}.md` raw markdown (`text/plain`, so browsers show
-  it rather than download it); `/{ULID}.json` markdown plus metadata. Lowercase ids 301
+  it rather than download it); `/{ULID}.json` markdown plus metadata; `/{ULID}.html`
+  rendered on the server (`src/html.js`). Lowercase ids 301
   to uppercase. Unknown, expired and deleted are one 404.
 - `POST /api/shares` `{content}` → links, `expiresAt`, `deleteToken` (returned once).
 - `DELETE /api/shares/{id}` `{deleteToken}`.
@@ -98,6 +99,17 @@ and not a secret store — see `../secret.airat.top` for that.
   only `#exportArea`. No settings dialog and no PNG, on purpose: the tool stays simple.
 
 ## AI Working Notes
+- The markdown dialect lives in `src/markdown.js`, shared by the browser (bundled into
+  `vendor/markdown-kit.js` — run `npm run vendor` after changing it; CI checks) and the
+  Worker's `/{id}.html`. That route has no DOMPurify (no DOM in a Worker): `src/html.js`
+  cleans with an HTMLRewriter allowlist of tags and attributes (URL attributes decoded
+  and scheme-checked; any `&` left in a scheme is refused), then renders math into the
+  placeholders after cleaning, and serves under `script-src 'none'`. Diagrams stay as
+  source. The rendering is cached per share (Cache API) behind the D1 lookup, so a
+  deleted share is a 404 whatever the cache holds. `markdown-it-dollarmath`'s internal
+  import is aliased to the shim in `wrangler.jsonc`, `vitest.config.ts` and `vendor.mjs`.
+- Export file names are `<title>_<YYYY-MM-DD>_<HH-MM-SS>.<ext>` in local time: letters,
+  digits, `-` and `_` only, and two exports never overwrite each other.
 - Share lifetime is fixed at 24 hours (`SHARE_TTL_MS`). Content cap 256 KB of UTF-8,
   repeated in `app.js` as `MAX_SHARE_BYTES`; `test/limits.test.ts` keeps them equal.
 - Creating is rate limited per IPv4 address or IPv6 /64 (`src/address.js`), 10/minute
