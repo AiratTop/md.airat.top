@@ -20,6 +20,10 @@ and not a secret store — see `../secret.airat.top` for that.
   `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit, D1:Edit) and `CLOUDFLARE_ACCOUNT_ID`.
   `.github/workflows/ci.yml` runs the same checks on pull requests with no credentials.
 - Custom domain: attached in the Cloudflare dashboard, not declared in `wrangler.jsonc`.
+- `main` is protected by a GitHub ruleset: no direct push or merge into it, no force
+  push, linear history, and a pull request whose `ci` check passes. Work on a branch,
+  push the branch, open a PR against `main`. Merging the PR deploys to production, so
+  merge only when that is what's wanted.
 - Architecture sibling: `../secret.airat.top` (same Worker/D1/rate-limiter/test layout).
   Representation URLs (`.md`, `.json`, `.html`) follow `../orator-space`.
 
