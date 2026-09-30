@@ -1,5 +1,13 @@
 # Third-party notices
 
+## DOMPurify 3.4.16
+
+The file `public_html/vendor/purify.min.js` is from
+[DOMPurify](https://github.com/cure53/DOMPurify/tree/3.4.16), copyright Cure53 and other
+contributors, dual-licensed under the Apache License 2.0 and the Mozilla Public License 2.0.
+It is used here under the Apache License 2.0, the same license as this repository; see
+[LICENSE](LICENSE) for its text.
+
 ## Marked 15.0.12
 
 The file `public_html/vendor/marked.min.js` is from

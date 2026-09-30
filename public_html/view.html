@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Served only by the Worker under /{id}, which fills in the title, the og:* tags,
+         the alternate links and #share-data. -->
+    <title>Shared markdown — md.airat.top</title>
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta
+      name="description"
+      content="A markdown document shared from md.airat.top. The link is deleted automatically after 24 hours."
+    />
+    <meta name="author" content="AiratTop" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="md.airat.top" />
+    <meta property="og:url" content="https://md.airat.top/" />
+    <meta property="og:title" content="Shared markdown" />
+    <meta
+      property="og:description"
+      content="Shared from md.airat.top. The link is deleted automatically after 24 hours."
+    />
+    <meta property="og:image" content="https://md.airat.top/canvas.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Shared markdown" />
+    <meta
+      name="twitter:description"
+      content="Shared from md.airat.top. The link is deleted automatically after 24 hours."
+    />
+
+    <link rel="alternate" type="text/markdown" id="alternate-md" />
+    <link rel="alternate" type="application/json" id="alternate-json" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="manifest" href="/site.webmanifest">
+    <!-- GoogleAnalytics counter (analytics.js reports this page as /shared, without the id) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CVEGGNPJXK"></script>
+    <script src="/analytics.js"></script>
+    <!-- /GoogleAnalytics counter -->
+  </head>
+  <body>
+    <script type="application/json" id="share-data">null</script>
+
+    <div class="backdrop">
+      <header class="topbar">
+        <div class="brand">
+          <a class="logo" href="/" aria-label="md.airat.top editor">md</a>
+          <div>
+            <h1 id="docTitle">Shared markdown</h1>
+            <p id="docMeta">Shared from md.airat.top</p>
+          </div>
+        </div>
+        <div class="controls" role="group" aria-label="Document controls" id="docControls" hidden>
+          <button class="btn btn--ghost" id="copyBtn" type="button">Copy</button>
+          <a class="repo" id="rawLink" href="#">Raw .md</a>
+          <button class="btn" id="editBtn" type="button">Open in editor</button>
+          <button class="btn btn--ghost btn--danger" id="deleteBtn" type="button" hidden>Delete now</button>
+          <label class="toggle">
+            <input id="darkMode" type="checkbox" />
+            <span>Dark Mode</span>
+          </label>
+        </div>
+      </header>
+
+      <main class="doc">
+        <article class="pane" id="docPane" hidden>
+          <div id="preview" class="preview"></div>
+        </article>
+
+        <section class="pane gone" id="gonePane" hidden>
+          <h2>This link has expired or never existed</h2>
+          <p>Shared links are deleted automatically 24 hours after they are created.</p>
+          <a class="btn" href="/">Open the editor</a>
+        </section>
+      </main>
+
+      <div class="status" id="status" aria-live="polite"></div>
+
+      <footer class="doc-footer">
+        <p>
+          © 2026
+          <a href="https://airat.top" target="_blank" rel="author">Airat.Top</a>
+          ·
+          <a href="/">Markdown Live Preview</a>
+          ·
+          <a href="https://github.com/AiratTop/md.airat.top" target="_blank" rel="noreferrer">GitHub</a>
+          ·
+          <a href="https://status.airat.top" target="_blank" rel="noreferrer">Status</a>
+          ·
+          <a href="https://privacy.airat.top" target="_blank" rel="noreferrer privacy-policy">Privacy</a>
+          ·
+          <a href="https://terms.airat.top" target="_blank" rel="noreferrer terms-of-service">Terms</a>
+        </p>
+      </footer>
+    </div>
+
+    <script src="/vendor/marked.min.js"></script>
+    <script src="/vendor/purify.min.js"></script>
+    <script src="/render.js"></script>
+    <script src="/common.js"></script>
+    <script src="/view.js"></script>
+  </body>
+</html>

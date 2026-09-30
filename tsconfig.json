@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "lib": ["es2022"],
+    // The dated entry points this package used to ship are gone; the root export is the
+    // current runtime's types. Naming a version that does not exist made `tsc` fail on
+    // the first line and typecheck nothing at all.
+    // Runtime types come from the generated worker-configuration.d.ts, which supersedes
+    // @cloudflare/workers-types. Deliberately not "node": its URL and iterator types
+    // conflict with the Workers runtime's, and vitest.config.ts — the only Node file
+    // here — is excluded below for the same reason.
+    "types": ["@cloudflare/vitest-pool-workers/types"],
+    "strict": true,
+    "noImplicitAny": false,
+    "noEmit": true,
+    "allowJs": true,
+    // The Worker sources are plain JS with no annotations; checking them would be a
+    // separate piece of work rather than a switch. The tests are TypeScript and are
+    // checked, which is what catches a changed Worker or D1 contract.
+    "checkJs": true,
+    "skipLibCheck": true
+  },
+  /*
+   * The Worker and the tests. `public_html/*.js` is left out: it is DOM wiring loaded as
+   * classic scripts, and checking it needs `lib: ["dom"]`, which collides with the
+   * Workers runtime types in the same program. What it mostly gets wrong is element ids,
+   * and `test/routing.test.ts` fails when one of those stops matching its page.
+   */
+  "include": ["src/**/*.js", "test/**/*.ts", "worker-configuration.d.ts"]
+}
