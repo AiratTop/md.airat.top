@@ -13,15 +13,20 @@ const { md, escapeHtml } = MarkdownKit;
 const USER_ID_PREFIX = "user-content-";
 
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName !== "A" || !node.hasAttribute("href")) {
+  // localName, not tagName: an SVG link (in a diagram) has the tagName "a", not "A".
+  if (node.localName !== "a") {
     return;
   }
-  const href = node.getAttribute("href");
+  const attribute = ["href", "xlink:href"].find((name) => node.hasAttribute(name));
+  if (!attribute) {
+    return;
+  }
+  const href = node.getAttribute(attribute);
   if (href.startsWith("#")) {
     // Ids in the document are prefixed (see below); in-page links — footnotes, a table
     // of contents — follow them, and stay in the same tab.
     if (href.length > 1 && !href.startsWith(`#${USER_ID_PREFIX}`)) {
-      node.setAttribute("href", `#${USER_ID_PREFIX}${href.slice(1)}`);
+      node.setAttribute(attribute, `#${USER_ID_PREFIX}${href.slice(1)}`);
     }
     return;
   }
@@ -37,7 +42,9 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
 // rather than the one instance.
 const renderMarkdown = (markdown) =>
   DOMPurify.sanitize(md.render(markdown), {
-    USE_PROFILE: { html: true },
+    // USE_PROFILES, plural: DOMPurify ignores any other spelling and falls back to its
+    // default allowlist, which lets <svg> and <math> in.
+    USE_PROFILES: { html: true },
     SANITIZE_NAMED_PROPS: true,
     FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select", "option"],
     FORBID_ATTR: ["style"],
@@ -88,7 +95,7 @@ const renderDiagrams = async (container, { theme: forcedTheme } = {}) => {
     if (svg === undefined) {
       try {
         const result = await mermaid.render(`mermaid-diagram-${++diagramCount}`, source);
-        svg = DOMPurify.sanitize(result.svg, { USE_PROFILE: { svg: true, svgFilters: true } });
+        svg = DOMPurify.sanitize(result.svg, { USE_PROFILES: { svg: true, svgFilters: true } });
       } catch (error) {
         svg = null;
       }

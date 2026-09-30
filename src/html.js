@@ -52,11 +52,20 @@ const TAG_ATTRIBUTES = {
 };
 const URL_ATTRIBUTES = new Set(["href", "src", "cite"]);
 
+/**
+ * A numeric character reference as a browser reads it: zero, a surrogate or anything past
+ * U+10FFFF is U+FFFD rather than an exception (`&#x110000;` once made /{id}.html a 500).
+ */
+function codePoint(number) {
+  const valid = number > 0 && number <= 0x10ffff && !(number >= 0xd800 && number <= 0xdfff);
+  return String.fromCodePoint(valid ? number : 0xfffd);
+}
+
 /** The few entities that matter for reading a URL's scheme; see safeUrl. */
 function decodeEntities(value) {
   return value
-    .replace(/&#x([0-9a-f]+);?/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);?/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&#x([0-9a-f]+);?/gi, (_, hex) => codePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);?/g, (_, dec) => codePoint(Number(dec)))
     .replace(/&(amp|lt|gt|quot|apos|colon|tab|newline);/gi, (_, name) =>
       ({ amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", colon: ":", tab: "\t", newline: "\n" })[name.toLowerCase()]
     );
@@ -89,7 +98,7 @@ function attributeAllowed(tag, name, value) {
 }
 
 const decodeTex = (value) =>
-  value.replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+  value.replace(/&#(\d+);/g, (_, dec) => codePoint(Number(dec)))
     .replace(/&(amp|lt|gt|quot);/g, (_, name) => ({ amp: "&", lt: "<", gt: ">", quot: '"' })[name]);
 
 /**

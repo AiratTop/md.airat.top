@@ -127,4 +127,59 @@ describe("server-side cleaning", () => {
     const html = await fragment("```mermaid\ngraph LR\n  A --> B\n```");
     expect(html).toContain('<pre class="mermaid-source"><code>graph LR');
   });
+
+  it("turns table alignment into align, the one form the cleaning keeps", async () => {
+    const html = await fragment("| Left | Center | Right |\n| :--- | :---: | ---: |\n| x | y | z |");
+    expect(html).toContain('<th align="left">Left</th>');
+    expect(html).toContain('<th align="center">Center</th>');
+    expect(html).toContain('<td align="right">z</td>');
+    expect(html).not.toContain("style=");
+  });
+});
+
+describe("hostile input", () => {
+  /** Each of these once made /{id}.html answer 500 for a share that was created fine. */
+  const HOSTILE = {
+    "a YAML alias that contains itself": "---\na: &a [*a]\n---\n\nhello",
+    "a YAML mapping that contains itself": "---\na: &a {b: *a}\n---\n\nhello",
+    "a hex character reference past U+10FFFF": '<a href="&#x110000;">text</a>',
+    "a decimal character reference past U+10FFFF": '<a href="&#99999999999;">text</a> <img src="&#1114112;x.png">'
+  };
+
+  for (const [name, content] of Object.entries(HOSTILE)) {
+    it(`serves a share with ${name}`, async () => {
+      const share = await create(content);
+      const response = await call(`/${share.id}.html`);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain(content.includes("hello") ? "hello" : "text");
+    });
+  }
+
+  it("shows front matter that refers to itself as the YAML it is", async () => {
+    for (const yaml of ["a: &a [*a]", "a: &a {b: *a}"]) {
+      const html = await fragment(`---\n${yaml}\n---\n\nhello`);
+      expect(html).toContain('<pre class="front-matter">');
+      expect(html).not.toContain("<table");
+    }
+  });
+
+  it("does not let YAML aliases multiply a few lines into megabytes", async () => {
+    const yaml = [
+      'a: &a ["xxxxxxxxxx", "xxxxxxxxxx", "xxxxxxxxxx", "xxxxxxxxxx", "xxxxxxxxxx", "xxxxxxxxxx", "xxxxxxxxxx", "xxxxxxxxxx", "xxxxxxxxxx", "xxxxxxxxxx"]',
+      "b: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]",
+      "c: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b, *b]",
+      "d: &d [*c, *c, *c, *c, *c, *c, *c, *c, *c, *c]",
+      "e: &e [*d, *d, *d, *d, *d, *d, *d, *d, *d, *d]",
+      "f: [*e, *e, *e, *e, *e, *e, *e, *e, *e, *e]"
+    ].join("\n");
+    const html = await fragment(`---\n${yaml}\n---\n\nhello`);
+    expect(html).toContain('<pre class="front-matter">');
+    expect(html.length).toBeLessThan(10 * yaml.length);
+  });
+
+  it("still shows shared, finite aliases in the table", async () => {
+    const html = await fragment("---\nbase: &base {x: 1}\nfirst: *base\nsecond: [*base, *base]\n---\n");
+    expect(html).toContain("<td>{&#34;x&#34;:1}</td>");
+    expect(html).toContain("<td>{&#34;x&#34;:1}, {&#34;x&#34;:1}</td>");
+  });
 });

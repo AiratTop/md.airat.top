@@ -13,11 +13,13 @@ export const MAX_CONTENT_BYTES = 256 * 1024;
 /**
  * Flood protection for creating shares, per caller. The minute window stops a burst, the
  * day window stops a patient script: at the cap, one address can hold at most
- * 200 × 256 KB ≈ 50 MB, and all of it is gone a day later.
+ * 300 × 256 KB ≈ 75 MB, and all of it is gone a day later. The minute window was 10 until
+ * it proved too tight for a few people behind one address, or for the browser suite run
+ * twice in a row (it creates six shares).
  */
 export const RATE_LIMITS = {
-  writeMinute: { limit: 10, periodSeconds: 60 },
-  writeDay: { limit: 200, periodSeconds: 86400 },
+  writeMinute: { limit: 30, periodSeconds: 60 },
+  writeDay: { limit: 300, periodSeconds: 86400 },
   other: { limit: 60, periodSeconds: 60 }
 };
 

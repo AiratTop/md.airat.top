@@ -15,7 +15,8 @@ and not a secret store — see `../secret.airat.top` for that.
 - Deployment configuration: `wrangler.jsonc`.
 - Deployment trigger: GitHub Actions (`.github/workflows/deploy.yml`) on push to `main`,
   not the Cloudflare Git integration — Workers Builds does not apply D1 migrations. It
-  runs tests and typecheck, applies migrations, then deploys. Secrets:
+  runs tests and typecheck, checks that `vendor/` is current, applies migrations, then
+  deploys. Secrets:
   `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit, D1:Edit) and `CLOUDFLARE_ACCOUNT_ID`.
   `.github/workflows/ci.yml` runs the same checks on pull requests with no credentials.
 - Custom domain: attached in the Cloudflare dashboard, not declared in `wrangler.jsonc`.
@@ -96,7 +97,8 @@ and not a secret store — see `../secret.airat.top` for that.
   (outside the page chrome; `.export-document` carries the light palette, so it stays
   light on a dark page, diagrams included via `renderDiagrams(…, { theme: "default" })`).
   The HTML file is that copy plus this site's CSS, KaTeX fonts and same-origin images
-  inlined, with no script. PDF is `window.print()` with `body.is-printing`, which shows
+  inlined, with no script; other URLs are made absolute and `srcset` is dropped, so the
+  file works opened from disk. PDF is `window.print()` with `body.is-printing`, which shows
   only `#exportArea`. No settings dialog and no PNG, on purpose: the tool stays simple.
 
 ## AI Working Notes
@@ -113,8 +115,8 @@ and not a secret store — see `../secret.airat.top` for that.
   digits, `-` and `_` only, and two exports never overwrite each other.
 - Share lifetime is fixed at 24 hours (`SHARE_TTL_MS`). Content cap 256 KB of UTF-8,
   repeated in `app.js` as `MAX_SHARE_BYTES`; `test/limits.test.ts` keeps them equal.
-- Creating is rate limited per IPv4 address or IPv6 /64 (`src/address.js`), 10/minute
-  and 200/day, via the Durable Object in `src/rate-limiter.js` (see `../secret.airat.top/AGENTS.md` for why not the rate limit
+- Creating is rate limited per IPv4 address or IPv6 /64 (`src/address.js`), 30/minute
+  and 300/day, via the Durable Object in `src/rate-limiter.js` (see `../secret.airat.top/AGENTS.md` for why not the rate limit
   binding). Reading is not metered. If D1 ever fills, creates fail until the oldest shares
   expire — reads are unaffected and it heals itself within 24 hours.
 - Delete tokens are stored only as SHA-256; the creator's browser keeps the token in
@@ -129,6 +131,15 @@ and not a secret store — see `../secret.airat.top` for that.
   it scans line by line and cuts each line short before any pattern sees it, because the
   heading pattern backtracks quadratically on long runs of spaces. Keep new title or
   preview logic linear, and test it on a hostile 256 KB input.
+- Front matter is someone else's YAML, and aliases make it a graph: it can contain itself
+  or expand a few lines into megabytes. `frontMatterTable` in `src/markdown.js` walks it
+  with a cycle check and a budget (depth, values, characters) and falls back to showing
+  the YAML as written. The editor saves the draft before rendering, so a render that
+  throws never costs the text.
+- Table alignment reaches both sanitisers as the `align` attribute (markdown-it's
+  `style="text-align:…"` is rewritten in `src/markdown.js`); `style` stays forbidden.
+- DOMPurify's option is `USE_PROFILES` (plural); any other spelling is silently ignored
+  and the default allowlist lets `<svg>` and `<math>` in. `test/e2e` checks the result.
 - `vitest-pool-workers` pins its own `wrangler`/`miniflare`; `overrides` in `package.json`
   lifts their `undici` and `sharp` past known advisories. Drop an override once the pool
   ships versions that no longer need it.

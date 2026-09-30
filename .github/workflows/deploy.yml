@@ -64,6 +64,12 @@ jobs:
       - name: browser tests
         run: npm run test:e2e
 
+      # The same check as in ci.yml, and here for the same reason plus one: a push straight
+      # to main skips ci.yml, and a stale vendor/markdown-kit.js would ship one markdown
+      # dialect to the browser and another to /{id}.html.
+      - name: vendor is up to date
+        run: npm run vendor && git diff --exit-code -- public_html/vendor THIRD_PARTY_NOTICES.md
+
       # Migrations are additive by convention, so this is safe to run before the code that
       # uses them is live. The reverse order is not.
       - name: apply D1 migrations
