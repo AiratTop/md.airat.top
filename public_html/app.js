@@ -47,20 +47,49 @@ const loadSample = async () => {
 
 let storageWarned = false;
 let diagramTimer = null;
-let edited = false; // typed into since the page loaded
+// Counts changes to the text — typing, Reset, a draft from another tab. Anything that
+// loads text asynchronously (the tour, Reset) checks it has not moved before applying.
+let revision = 0;
 
-const updatePreview = () => {
-  const markdown = textarea.value;
-  // Saved first: a document the renderer chokes on must not cost the author their draft.
-  if (!setStored(STORAGE_KEYS.content, markdown) && !storageWarned) {
+// Saving is separate from rendering: only a change to the text writes the draft. A
+// re-render (a theme change) must not, because this tab's copy may be older than what
+// another tab saved since; that once overwrote the newer draft with the older one.
+const saveDraft = () => {
+  if (!setStored(STORAGE_KEYS.content, textarea.value) && !storageWarned) {
     storageWarned = true;
     showStatus("Browser storage is full or blocked: this draft will not survive a reload", 6000);
   }
-  preview.innerHTML = renderMarkdown(markdown);
+};
+
+// Rendering the whole document takes ~0.5 ms per KB. While it fits in a frame it runs on
+// every change, as before; past that, changes are coalesced so typing stays responsive.
+// It always reads the textarea, so a deferred render never shows stale text.
+const FRAME_MS = 16;
+let lastRenderMs = 0;
+let renderTimer = null;
+
+const renderNow = () => {
+  clearTimeout(renderTimer);
+  renderTimer = null;
+  const started = performance.now();
+  preview.innerHTML = renderMarkdown(textarea.value);
+  lastRenderMs = performance.now() - started;
   renderMath(preview);
   // Diagrams are drawn once typing pauses: mid-edit, a diagram rarely parses.
   clearTimeout(diagramTimer);
   diagramTimer = setTimeout(() => renderDiagrams(preview), 300);
+  if (syncToggle.checked) {
+    syncScroll(textarea, preview);
+  }
+};
+
+const updatePreview = () => {
+  if (lastRenderMs <= FRAME_MS) {
+    renderNow();
+    return;
+  }
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(renderNow, Math.min(400, lastRenderMs * 2));
 };
 
 let isSyncing = false;
@@ -78,12 +107,12 @@ const syncScroll = (source, target) => {
   });
 };
 
+// Text set by the page itself (the tour, Reset): saved, and rendered straight away.
 const setContent = (value) => {
   textarea.value = value;
-  updatePreview();
-  if (syncToggle.checked) {
-    syncScroll(textarea, preview);
-  }
+  revision++;
+  saveDraft();
+  renderNow();
 };
 
 // null means nothing was ever saved; an empty string is a draft the user emptied.
@@ -93,7 +122,7 @@ const storedSync = getStored(STORAGE_KEYS.sync, "true");
 
 initTheme(darkToggle);
 // Diagrams are drawn in the theme's colours, so a theme change redraws them.
-new MutationObserver(() => updatePreview()).observe(document.documentElement, {
+new MutationObserver(() => renderNow()).observe(document.documentElement, {
   attributes: true,
   attributeFilter: ["data-theme"],
 });
@@ -103,7 +132,7 @@ if (storedContent === null) {
   // The tour arrives over the network, and the editor is usable before it does: it goes
   // in only if nobody has typed in the meantime, or it would replace what they wrote.
   const starter = (text) => {
-    if (!edited) setContent(text);
+    if (revision === 0) setContent(text);
   };
   loadSample()
     .then(starter)
@@ -113,11 +142,24 @@ if (storedContent === null) {
 }
 
 textarea.addEventListener("input", () => {
-  edited = true;
+  revision++;
+  saveDraft();
   updatePreview();
-  if (syncToggle.checked) {
-    syncScroll(textarea, preview);
+});
+
+// Another tab saved the draft: this one follows, so the two never hold different texts
+// and neither can save its stale copy over the other's. (The event fires only in the
+// tabs that did not write.)
+window.addEventListener("storage", (event) => {
+  if (event.key !== STORAGE_KEYS.content || event.newValue === null || event.newValue === textarea.value) {
+    return;
   }
+  const { selectionStart, selectionEnd } = textarea;
+  textarea.value = event.newValue;
+  textarea.setSelectionRange(selectionStart, selectionEnd);
+  revision++;
+  renderNow();
+  showStatus("Updated with the draft from another tab");
 });
 
 textarea.addEventListener("scroll", () => {
@@ -137,12 +179,20 @@ resetBtn.addEventListener("click", async () => {
   if (draft.trim() && draft !== sampleText && !confirm("Replace your text with the sample? Your current text will be lost.")) {
     return;
   }
+  // The editor stays usable while the sample loads; text typed meanwhile wins.
+  const before = revision;
+  let sample;
   try {
-    setContent(await loadSample());
+    sample = await loadSample();
   } catch (error) {
     showStatus("Could not load the sample. Check your connection.");
     return;
   }
+  if (revision !== before) {
+    showStatus("Reset cancelled: you kept typing");
+    return;
+  }
+  setContent(sample);
   showStatus("Reset to sample markdown");
 });
 

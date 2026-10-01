@@ -29,8 +29,9 @@ Especially interesting:
 - The content of shared documents. Shares are plaintext by design and readable by
   anyone with the link. Do not use them for secrets; use
   [secret.airat.top](https://secret.airat.top).
-- Images in a shared document load from their own hosts, which see the reader's IP
-  address. This is how markdown images work.
+- Images in a document load from their own hosts, which see the image's address and the
+  reader's IP address: in a shared document, and in the editor as soon as the image is
+  typed. This is how markdown images work; the text itself is not sent.
 - Reports from automated scanners without a demonstrated impact.
 
 ## Design notes

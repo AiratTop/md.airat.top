@@ -126,12 +126,18 @@ const renderDiagrams = async (container, { theme: forcedTheme } = {}) => {
 // like; maxSize and maxExpand bound what a formula can make KaTeX draw or expand.
 
 let katexLoading = null;
+// Resolves once KaTeX's stylesheet has loaded (or failed): printing waits for it.
+let katexStyled = Promise.resolve();
 
 const loadKatex = () => {
   if (!katexLoading) {
     const stylesheet = document.createElement("link");
     stylesheet.rel = "stylesheet";
     stylesheet.href = "/vendor/katex/katex.css";
+    katexStyled = new Promise((resolve) => {
+      stylesheet.addEventListener("load", resolve, { once: true });
+      stylesheet.addEventListener("error", resolve, { once: true });
+    });
     document.head.append(stylesheet);
     katexLoading = import("/vendor/katex/katex.js").then((module) => module.default);
   }
