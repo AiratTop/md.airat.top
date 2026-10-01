@@ -46,7 +46,8 @@ const renderMarkdown = (markdown) =>
     // default allowlist, which lets <svg> and <math> in.
     USE_PROFILES: { html: true },
     SANITIZE_NAMED_PROPS: true,
-    FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select", "option"],
+    // template: inert, but no use in a document, and /{id}.html drops it too.
+    FORBID_TAGS: ["style", "template", "form", "input", "button", "textarea", "select", "option"],
     FORBID_ATTR: ["style"],
   });
 

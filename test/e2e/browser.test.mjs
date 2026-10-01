@@ -520,6 +520,97 @@ test("a large draft is saved on every change, even while rendering is deferred",
   await context.close();
 });
 
+/**
+ * Script injection, in every place a document is shown: the editor, the shared page and
+ * /{id}.html. Each payload sets window.__pwned or opens an alert if it runs. Two layers
+ * stand in the way — the sanitiser (DOMPurify, or the server's allowlist) and the CSP —
+ * and the DOM checks below fail if the first lets anything through, even when the
+ * second would have stopped it. (<base> is left out: DOMPurify's own parsing document
+ * trips the CSP's base-uri, which the suite would report; test/html.test.ts covers it.)
+ */
+const RUNS = "window.__pwned=1;alert(1)";
+const XSS_PAYLOADS = [
+  // Front matter counts only at the very top; the raw-text tags (<style> and friends)
+  // swallow the rest of the document, so they go last.
+  "---\ntitle: <img src=x onerror=window.__pwned=1>\n---",
+  "```mermaid\ngraph TD\n  A-->B\n  click A call alert(1)\n  click B href \"javascript:window.__pwned=1\"\n```",
+  "$\\href{javascript:alert(1)}{katex}$",
+  "[md](javascript:window.__pwned=1)",
+  `<script>${RUNS}</script>`,
+  `<img src=x onerror="${RUNS}">`,
+  `<svg onload="${RUNS}"><circle r=1 /></svg>`,
+  `<a href="javascript:${RUNS}">a</a>`,
+  `<a href="&#106;avascript:${RUNS}">entity</a>`,
+  `<a href="java\tscript:${RUNS}">tab</a>`,
+  `<iframe srcdoc="<script>parent.__pwned=1</script>"></iframe>`,
+  `<object data="javascript:${RUNS}"></object><embed src="javascript:${RUNS}">`,
+  `<details open ontoggle="${RUNS}"><summary>x</summary></details>`,
+  `<form><button formaction="javascript:${RUNS}">b</button></form>`,
+  `<meta http-equiv="refresh" content="0;url=javascript:${RUNS}">`,
+  `<svg><a xlink:href="javascript:${RUNS}"><text y=20>svg</text></a></svg>`,
+  `<div style="background:url(javascript:alert(1))">styled</div>`,
+  `<input autofocus onfocus="${RUNS}">`,
+  `<video><source onerror="${RUNS}"></video>`,
+  `<x onclick="${RUNS}">custom</x>`,
+  `<template><img src=x onerror="${RUNS}"></template>`,
+  `<noscript><p title="</noscript><img src=x onerror=${RUNS}>"></noscript>`,
+  `<style>*{background:url("javascript:${RUNS}")}</style>`,
+  `<math><mtext><table><mglyph><style><img src=x onerror="${RUNS}">`,
+].join("\n\n");
+
+async function injected(page, root) {
+  return page.evaluate((root) => {
+    const nodes = [...document.querySelectorAll(`${root} *`)];
+    return {
+      ran: window.__pwned === 1,
+      handlers: nodes.filter((node) => [...node.attributes].some((a) => /^on/i.test(a.name))).length,
+      scriptUrls: nodes.filter((node) => [...node.attributes].some((a) => /^\s*javascript:/i.test(a.value))).length,
+      // A drawn diagram carries mermaid's own <style>, scoped to its id; themeCSS is locked.
+      tags: [...document.querySelectorAll(`${root} :is(script,iframe,object,embed,form,input,button,meta,base,style,template,noscript)`)]
+        .filter((n) => !(n.localName === "style" && n.parentElement?.matches(".mermaid-diagram > svg")))
+        .map((n) => n.localName),
+      strayMarkup: nodes.filter((n) => (n.localName === "svg" || n.localName === "math") && !n.closest(".mermaid-diagram, .katex")).length,
+    };
+  }, root);
+}
+
+test("no script in a document runs: editor, shared page and /{id}.html", async () => {
+  const created = await (
+    await fetch(`${BASE}/api/shares`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: XSS_PAYLOADS }),
+    })
+  ).json();
+  const clean = { ran: false, handlers: 0, scriptUrls: 0, tags: [], strayMarkup: 0 };
+  for (const [where, path, root, draft] of [
+    ["editor", "/", "#preview", XSS_PAYLOADS],
+    ["shared page", `/${created.id}`, "#preview", undefined],
+    ["/{id}.html", `/${created.id}.html`, "main", undefined],
+  ]) {
+    const { page, context } = await openPage(path, { draft });
+    let alerts = 0;
+    page.removeAllListeners("dialog");
+    page.on("dialog", (dialog) => {
+      alerts++;
+      dialog.dismiss();
+    });
+    // Every payload must have reached the renderer: the front matter, the diagram (drawn,
+    // or left as source on /{id}.html) and the math come first and last of the safe ones.
+    await page.waitForSelector(`${root} table.front-matter`, { state: "attached" });
+    await page.waitForSelector(
+      path.endsWith(".html") ? `${root} pre.mermaid-source` : `${root} .mermaid-diagram svg`,
+      { timeout: 10_000, state: "attached" }
+    );
+    await page.waitForSelector(`${root} .katex`, { timeout: 10_000, state: "attached" });
+    assert.equal(await page.locator(`${root} :is(a, span, p)`, { hasText: "custom" }).count() > 0, true, `${where}: later payloads were not rendered`);
+    await page.waitForTimeout(500);
+    assert.deepEqual(await injected(page, root), clean, where);
+    assert.equal(alerts, 0, `${where}: an alert opened`);
+    await context.close();
+  }
+});
+
 /** Opens the Export menu and picks an item, returning the download it starts. */
 async function exportAs(page, kind) {
   await page.click("#exportBtn");
