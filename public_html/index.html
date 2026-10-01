@@ -144,15 +144,12 @@
             This browser's storage is blocked, so <strong>Delete now</strong> works only
             until you close this page.
           </p>
-          <p class="dialog__links">
-            <a id="shareOpen" target="_blank" rel="noopener">Open</a>
-            ·
-            <a id="shareRaw" target="_blank" rel="noopener">Raw .md</a>
-            ·
-            <a id="shareJson" target="_blank" rel="noopener">JSON</a>
-            ·
-            <a id="shareHtml" target="_blank" rel="noopener">HTML</a>
-          </p>
+          <nav class="dialog__links" aria-label="Open the shared link">
+            <a class="chip chip--primary" id="shareOpen" target="_blank" rel="noopener">Open</a>
+            <a class="chip" id="shareRaw" target="_blank" rel="noopener" title="Plain markdown, for curl and models">Raw .md</a>
+            <a class="chip" id="shareJson" target="_blank" rel="noopener" title="Markdown plus metadata">JSON</a>
+            <a class="chip" id="shareHtml" target="_blank" rel="noopener" title="Rendered on the server, no script">HTML</a>
+          </nav>
           <div class="dialog__actions">
             <button class="btn btn--ghost btn--danger" type="button" id="shareDelete">Delete now</button>
             <button class="btn btn--ghost" type="button" id="shareNew" hidden>New link</button>

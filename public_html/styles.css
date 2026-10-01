@@ -758,14 +758,58 @@ html[data-theme="dark"] .preview pre {
   color: #d64545;
 }
 
-.dialog__note,
-.dialog__links {
+.dialog__note {
   color: var(--muted);
   font-size: 14px;
 }
 
-.dialog__links a {
+/* The link's other forms: one row of pills, each opens in a new tab. */
+.dialog__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.chip::after {
+  content: "↗";
+  color: var(--muted);
+  font-weight: 400;
+  transition: color 0.2s ease;
+}
+
+.chip:hover,
+.chip:focus-visible {
+  border-color: var(--accent-2);
   color: var(--accent-2);
+  transform: translateY(-1px);
+}
+
+.chip:hover::after,
+.chip:focus-visible::after,
+.chip--primary,
+.chip--primary::after {
+  color: var(--accent-2);
+}
+
+.chip--primary {
+  border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border));
 }
 
 .dialog__actions {
@@ -845,6 +889,17 @@ html[data-theme="dark"] .preview pre {
   .backdrop {
     padding: 18px 16px 28px;
     gap: 18px;
+  }
+
+  /* Four pills don't fit one row on a phone; an even 2×2 reads better than 3+1. */
+  .dialog__links {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .chip {
+    justify-content: center;
+    padding: 9px 12px;
   }
 
   .logo {
