@@ -28,7 +28,7 @@ describe("/{id}.html", () => {
     expect(html).toContain('<html lang="en" data-theme="light">');
     expect(html).toContain("<title>Report</title>");
     expect(html).toContain('<table class="front-matter">');
-    expect(html).toContain("<h1>Heading</h1>");
+    expect(html).toContain('<h1 id="heading">Heading</h1>');
     expect(html).toContain('class="hljs language-js"');
     expect(html).toContain('class="footnotes"');
     expect(html).not.toContain("<script");
@@ -158,6 +158,27 @@ describe("server-side cleaning", () => {
     const html = await fragment("> [!WARNING]\n> Careful.");
     expect(html).toContain('<p class="markdown-alert-title">Warning</p>');
     expect(html).not.toContain("<svg");
+  });
+
+  it("gives headings GitHub's ids, so a table of contents lands", async () => {
+    const html = await fragment(
+      [
+        "# Section",
+        "## Привет, мир!",
+        "## **Bold** `code` text",
+        "## Section",
+        "## Section",
+        "",
+        "[Go](#section) [Again](#section-2) [Ru](#привет-мир)"
+      ].join("\n")
+    );
+    expect(html).toContain('<h1 id="section">Section</h1>');
+    expect(html).toContain('<h2 id="привет-мир">Привет, мир!</h2>');
+    expect(html).toContain('id="bold-code-text"');
+    expect(html).toContain('<h2 id="section-1">Section</h2>');
+    expect(html).toContain('<h2 id="section-2">Section</h2>');
+    expect(html).toContain('href="#section"');
+    expect(html).toContain('href="#section-2"');
   });
 
   it("leaves diagrams as their source", async () => {

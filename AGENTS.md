@@ -101,7 +101,8 @@ and not a secret store — see `../secret.airat.top` for that.
   (outside the page chrome; `.export-document` carries the light palette, so it stays
   light on a dark page, diagrams included via `renderDiagrams(…, { theme: "default" })`).
   The HTML file is that copy plus this site's CSS, KaTeX fonts and same-origin images
-  inlined, with no script; other URLs are made absolute and `srcset` is dropped, so the
+  inlined, with no script; other sites' images stay links (fetching them would need a
+  request to another origin) and the author is told; other URLs are made absolute and `srcset` is dropped, so the
   file works opened from disk. PDF is `window.print()` with `body.is-printing`, which shows
   only `#exportArea`. No settings dialog and no PNG, on purpose: the tool stays simple.
 
@@ -115,6 +116,12 @@ and not a secret store — see `../secret.airat.top` for that.
   source. The rendering is cached per share (Cache API) behind the D1 lookup, so a
   deleted share is a 404 whatever the cache holds. `markdown-it-dollarmath`'s internal
   import is aliased to the shim in `wrangler.jsonc`, `vitest.config.ts` and `vendor.mjs`.
+- One export at a time (`busy` in `setupExport`): HTML and PDF render into the shared
+  `#exportArea` and wait on math, diagrams and images. Markdown export takes its title
+  from a detached element. Before `window.print()`, `printReady` waits (bounded) for
+  KaTeX's stylesheet, fonts and every image, and reports images that never arrived.
+- Headings get GitHub's ids (`heading-ids` in `src/markdown.js`, github-slugger's rules),
+  so `[x](#section)` lands; in the browser both sides carry the `user-content-` prefix.
 - Export file names are `<title>_<YYYY-MM-DD>_<HH-MM-SS>.<ext>` in local time: letters,
   digits, `-` and `_` only, and two exports never overwrite each other.
 - Code highlighting is highlight.js's common set (36 languages) plus `EXTRA_LANGUAGES` in
@@ -132,6 +139,13 @@ and not a secret store — see `../secret.airat.top` for that.
   sharing the same text again offers the existing link (checked with a HEAD to `.md`).
   Deduplication is per browser on purpose: a server-side content lookup would tell
   anyone whether a given text had been shared.
+- The draft is one `localStorage` key shared by every tab. Only a change to the text
+  saves it (`saveDraft`); a re-render (theme change) never does, and a tab follows a
+  draft another tab saved (the `storage` event). A stale tab once overwrote the newer
+  draft on a theme toggle. Text that arrives asynchronously (the tour, Reset) is applied
+  only if `revision` has not moved since it was requested.
+- Rendering runs on every change while it fits in a frame (`FRAME_MS`); on large
+  documents changes are coalesced. Saving is never deferred.
 - Storage can fail (quota, private mode). `setStored` returns whether it worked; the
   editor warns once when the draft cannot be saved, the dialog deletes with the token it
   holds in memory, and "Open in editor" stays put rather than open an empty editor.

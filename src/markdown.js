@@ -197,6 +197,34 @@ export function createMarkdown() {
     return defaultFence(tokens, index, options, env, self);
   };
 
+  // Heading ids, as GitHub makes them (github-slugger): the text in lower case, without
+  // punctuation (letters of any script stay), spaces as hyphens, and -1, -2… on repeats.
+  // A table of contents ([Section](#section)) then lands. In the browser DOMPurify
+  // prefixes the id with "user-content-", as it does the link; on /{id}.html neither is.
+  md.core.ruler.after("inline", "heading-ids", (state) => {
+    const occurrences = new Map();
+    const tokens = state.tokens;
+    for (let i = 0; i < tokens.length - 1; i++) {
+      if (tokens[i].type !== "heading_open" || tokens[i].attrGet("id")) continue;
+      const text = (tokens[i + 1].children ?? [])
+        .filter((child) => child.type === "text" || child.type === "code_inline")
+        .map((child) => child.content)
+        .join("");
+      const base = text
+        .toLowerCase()
+        .replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, "")
+        .replace(/ /g, "-");
+      if (!base) continue;
+      let slug = base;
+      while (occurrences.has(slug)) {
+        occurrences.set(base, occurrences.get(base) + 1);
+        slug = `${base}-${occurrences.get(base)}`;
+      }
+      occurrences.set(slug, 0);
+      tokens[i].attrSet("id", slug);
+    }
+  });
+
   // Task lists ("- [ ]" / "- [x]"), which markdown-it leaves to plugins. They render as a
   // symbol rather than an <input>: the sanitisers remove every input, and with it the only
   // thing that told done from not done.

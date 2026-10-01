@@ -167,21 +167,60 @@ ${body.innerHTML}
 `;
 };
 
+// Only the title is needed, so this renders into a detached element rather than
+// #exportArea, which an HTML or PDF export may be using.
 const exportMarkdown = (markdown) => {
-  exportArea.innerHTML = renderMarkdown(markdown);
-  download(fileName(documentTitle(exportArea), "md"), "text/markdown;charset=utf-8", markdown);
+  const scratch = document.createElement("div");
+  scratch.innerHTML = renderMarkdown(markdown);
+  download(fileName(documentTitle(scratch), "md"), "text/markdown;charset=utf-8", markdown);
 };
 
 const exportHtml = async (markdown) => {
   const container = await renderForExport(markdown);
   const title = documentTitle(container);
   download(fileName(title, "html"), "text/html;charset=utf-8", await standaloneHtml(container, title));
+  // Other sites' images are not embedded: fetching them would take a request to another
+  // origin, which this site's policy refuses. They stay links, and the author is told.
+  const external = [...container.querySelectorAll("img[src]")].filter(
+    (image) => new URL(image.getAttribute("src"), location.href).origin !== location.origin
+  ).length;
+  if (external) {
+    showStatus(`Exported. ${external === 1 ? "1 image from another site stays a link" : `${external} images from other sites stay links`}: the file needs the network to show ${external === 1 ? "it" : "them"}.`, 6000);
+  }
+};
+
+// Before printing, everything the print shows must have arrived: KaTeX's stylesheet,
+// the fonts, and every image, loaded and decoded. Bounded, because an image host may
+// never answer; what is still missing then is reported rather than waited for.
+const PRINT_WAIT_MS = 10_000;
+
+const printReady = async (container) => {
+  const images = [...container.querySelectorAll("img")];
+  for (const image of images) image.loading = "eager"; // a lazy image off-screen never loads
+  const loaded = (image) =>
+    image.complete
+      ? Promise.resolve()
+      : new Promise((resolve) => {
+          image.addEventListener("load", resolve, { once: true });
+          image.addEventListener("error", resolve, { once: true });
+        });
+  const everything = Promise.all([
+    container.querySelector(".katex") ? katexStyled : null,
+    document.fonts.ready,
+    ...images.map((image) => loaded(image).then(() => image.decode().catch(() => {}))),
+  ]);
+  await Promise.race([everything, new Promise((resolve) => setTimeout(resolve, PRINT_WAIT_MS))]);
+  return images.filter((image) => !image.complete || image.naturalWidth === 0).length;
 };
 
 // The print shows only #exportArea (see @media print in styles.css). The page title
 // becomes the suggested PDF filename, so it is the document's for the duration.
 const exportPdf = async (markdown) => {
   const container = await renderForExport(markdown);
+  const missing = await printReady(container);
+  if (missing) {
+    showStatus(`${missing === 1 ? "1 image" : `${missing} images`} could not be loaded and will be missing from the PDF.`, 6000);
+  }
   const pageTitle = document.title;
   document.title = fileName(documentTitle(container), "pdf").replace(/\.pdf$/, "");
   document.body.classList.add("is-printing");
@@ -226,19 +265,30 @@ const setupExport = ({ button, menu, getMarkdown }) => {
     }
   });
 
+  // One export at a time: HTML and PDF render into the shared #exportArea and wait on
+  // math, diagrams and images, and a second export started meanwhile replaced the
+  // document under the first. The text is taken when the export starts.
   const actions = { md: exportMarkdown, html: exportHtml, pdf: exportPdf };
+  let busy = false;
   for (const item of menu.querySelectorAll("[data-export]")) {
     item.addEventListener("click", async () => {
       close();
+      if (busy) {
+        showStatus("An export is already in progress");
+        return;
+      }
       const markdown = getMarkdown();
       if (!markdown.trim()) {
         showStatus("Nothing to export yet");
         return;
       }
+      busy = true;
       try {
         await actions[item.dataset.export](markdown);
       } catch (error) {
         showStatus("Export failed. Try again.");
+      } finally {
+        busy = false;
       }
     });
   }

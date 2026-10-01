@@ -30,11 +30,15 @@ with a D1 database.
 - A first visit (and **Reset**) opens a tour of all of it, kept in `public_html/sample.md`.
 - Split layout: editor on the left, preview on the right.
 - Sync scroll, reset, and copy actions.
-- **Export** to Markdown, a standalone HTML file (styles, fonts and images embedded; no
-  scripts) or PDF through the browser's print dialog. Exports are always light and are
-  made in the browser; nothing is uploaded.
+- **Export** to Markdown, a standalone HTML file (styles, fonts and this site's images
+  embedded; no scripts) or PDF through the browser's print dialog. Images from other
+  sites stay links in the HTML file, so it needs the network to show them. Exports are
+  always light and are made in the browser; nothing is uploaded.
 - Dark mode based on browser settings with manual override.
 - The editor runs in your browser. Your text never leaves it unless you press **Share**.
+  One exception, as on any web page: an image from another site
+  (`![](https://example.com/a.png)`) loads from that site as soon as you type it, so that
+  site sees the image's address and your IP address.
 - **Share** creates a temporary link to a snapshot of your text:
   - `https://md.airat.top/{id}`: the rendered document;
   - `https://md.airat.top/{id}.md`: the raw markdown, for curl, scripts and LLMs;

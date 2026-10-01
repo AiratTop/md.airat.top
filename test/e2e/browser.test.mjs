@@ -57,7 +57,7 @@ after(async () => {
  */
 const foreignRequests = [];
 
-async function openPage(path = "/", { blockStorage = false, draft, scale = 1, beforeGoto } = {}) {
+async function openPage(path = "/", { blockStorage = false, draft, scale = 1, beforeGoto, waitUntil = "load" } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: scale });
   await context.route(/.*/, (route) => {
     const url = route.request().url();
@@ -92,7 +92,8 @@ async function openPage(path = "/", { blockStorage = false, draft, scale = 1, be
   });
   page.on("dialog", (dialog) => dialog.accept());
   await beforeGoto?.(page);
-  await page.goto(BASE + path);
+  // A test that holds back a stylesheet or an image would never see "load".
+  await page.goto(BASE + path, { waitUntil });
   return { page, posts, context };
 }
 
@@ -460,6 +461,65 @@ test("the panel divider moves with the keyboard", async () => {
   await context.close();
 });
 
+test("a second tab follows the draft, and a theme change there does not overwrite it", async () => {
+  const { page: first, context } = await openPage("/", { draft: "old text" });
+  const second = await context.newPage();
+  second.on("dialog", (dialog) => dialog.accept());
+  await second.goto(BASE);
+  assert.equal(await second.inputValue("#markdownInput"), "old text");
+
+  await first.fill("#markdownInput", "new text from the first tab");
+  await second.waitForFunction(() => document.getElementById("markdownInput").value === "new text from the first tab");
+  await second.click("#darkMode");
+  await second.waitForTimeout(200);
+  assert.equal(await second.evaluate(() => localStorage.getItem("md-preview-content")), "new text from the first tab");
+
+  await first.reload();
+  assert.equal(await first.inputValue("#markdownInput"), "new text from the first tab");
+  await context.close();
+});
+
+test("Reset does not replace text typed while the sample loads", async () => {
+  let releaseSample;
+  const sampleHeld = new Promise((resolve) => (releaseSample = resolve));
+  const { page, context } = await openPage("/", {
+    draft: "my draft",
+    beforeGoto: (page) =>
+      page.route("**/sample.md", async (route) => {
+        await sampleHeld;
+        await route.continue();
+      }),
+  });
+  await page.click("#resetBtn"); // the confirm is accepted by openPage
+  await page.fill("#markdownInput", "typed during Reset");
+  releaseSample();
+  await page.waitForResponse("**/sample.md");
+  await page.waitForTimeout(300);
+  assert.equal(await page.inputValue("#markdownInput"), "typed during Reset");
+  assert.equal(await page.evaluate(() => localStorage.getItem("md-preview-content")), "typed during Reset");
+  assert.match(await page.textContent("#status"), /Reset cancelled/);
+  await context.close();
+});
+
+test("a link to a heading lands on it", async () => {
+  const { page, context } = await openPage("/", { draft: "[Go](#second-part)\n\n# First\n\n# Second part" });
+  const href = await page.getAttribute("#preview a", "href");
+  assert.equal(href, "#user-content-second-part");
+  assert.equal(await page.evaluate((id) => document.getElementById(id)?.textContent, href.slice(1)), "Second part");
+  await context.close();
+});
+
+test("a large draft is saved on every change, even while rendering is deferred", async () => {
+  const big = Array.from({ length: 3000 }, (_, i) => `## Heading ${i}\n\nSome **bold** and [a link](#heading-${i}) and ==mark==.`).join("\n\n");
+  const { page, context } = await openPage("/", { draft: big });
+  await page.focus("#markdownInput");
+  await page.keyboard.press("End");
+  await page.keyboard.type("XYZ");
+  assert.ok((await page.evaluate(() => localStorage.getItem("md-preview-content"))).endsWith("XYZ"));
+  await page.waitForFunction(() => document.getElementById("preview").textContent.includes("XYZ"));
+  await context.close();
+});
+
 /** Opens the Export menu and picks an item, returning the download it starts. */
 async function exportAs(page, kind) {
   await page.click("#exportBtn");
@@ -532,6 +592,63 @@ test("Export as HTML makes links absolute and keeps the embedded image, even at 
   await file.setContent(html);
   const image = await file.evaluate(() => document.querySelector("img").currentSrc);
   assert.match(image, /^data:image\/png;base64,/);
+  await context.close();
+});
+
+test("one export at a time: a second one waits its turn instead of swapping the document", async () => {
+  let releaseKatex;
+  const katexHeld = new Promise((resolve) => (releaseKatex = resolve));
+  const { page, context } = await openPage("/", {
+    draft: "# Document A\n\nMath $x^2$.",
+    waitUntil: "domcontentloaded",
+    beforeGoto: (page) =>
+      page.route("**/vendor/katex/katex.css", async (route) => {
+        await katexHeld;
+        await route.continue();
+      }),
+  });
+  const html = page.waitForEvent("download");
+  await page.click("#exportBtn");
+  await page.click('[data-export="html"]');
+  await page.fill("#markdownInput", "# Document B");
+  await page.click("#exportBtn");
+  await page.click('[data-export="md"]');
+  assert.match(await page.textContent("#status"), /already in progress/);
+  releaseKatex();
+  const download = await html;
+  assert.match(download.suggestedFilename(), /^document-a_/);
+  assert.match(await downloadedText(download), /<title>Document A<\/title>/);
+  await context.close();
+});
+
+test("Export as PDF waits for images before printing", async () => {
+  let releaseImage;
+  const imageHeld = new Promise((resolve) => (releaseImage = resolve));
+  const { page, context } = await openPage("/", {
+    draft: '# Pictures\n\n<img src="/favicon-32x32.png?slow" alt="slow">',
+    waitUntil: "domcontentloaded",
+    beforeGoto: (page) =>
+      page.route(/favicon-32x32\.png\?slow$/, async (route) => {
+        await imageHeld;
+        await route.continue();
+      }),
+  });
+  await page.waitForSelector("#preview img", { state: "attached" });
+  await page.evaluate(() => {
+    window.print = () => {
+      const image = document.querySelector("#exportArea img");
+      window.__printed = { complete: image.complete, width: image.naturalWidth };
+    };
+  });
+  await page.click("#exportBtn");
+  await page.click('[data-export="pdf"]');
+  await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => window.__printed), undefined, "printed before the image arrived");
+  releaseImage();
+  await page.waitForFunction(() => window.__printed !== undefined, null, { timeout: 10_000 });
+  const printed = await page.evaluate(() => window.__printed);
+  assert.equal(printed.complete, true);
+  assert.ok(printed.width > 0);
   await context.close();
 });
 
