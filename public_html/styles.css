@@ -787,11 +787,18 @@ html[data-theme="dark"] .preview pre {
   transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
+/* "Opens in a new tab", drawn as an icon: a text ↗ sits on the baseline and varies by font. */
 .chip::after {
-  content: "↗";
-  color: var(--muted);
-  font-weight: 400;
-  transition: color 0.2s ease;
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  opacity: 0.55;
+  -webkit-mask: var(--icon-external) center / contain no-repeat;
+  mask: var(--icon-external) center / contain no-repeat;
+  transition: opacity 0.2s ease;
+  --icon-external: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h6v6'/%3E%3Cpath d='M10 14 21 3'/%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/svg%3E");
 }
 
 .chip:hover,
@@ -803,12 +810,12 @@ html[data-theme="dark"] .preview pre {
 
 .chip:hover::after,
 .chip:focus-visible::after,
-.chip--primary,
 .chip--primary::after {
-  color: var(--accent-2);
+  opacity: 1;
 }
 
 .chip--primary {
+  color: var(--accent-2);
   border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border));
 }
 
