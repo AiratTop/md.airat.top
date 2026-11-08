@@ -108,7 +108,7 @@ export async function serveShare(request, env, id, format) {
   const links = shareLinks(env, id);
 
   if (format === "md") {
-    if (!share) return text("Not found. Shared links are deleted after 24 hours.\n", 404);
+    if (!share) return text("Not found. Shared links are deleted after 1 hour, 24 hours or 3 days.\n", 404);
     return text(share.content, 200, {
       "Content-Disposition": `inline; filename="${id}.md"`,
       "Access-Control-Allow-Origin": "*",
@@ -117,7 +117,7 @@ export async function serveShare(request, env, id, format) {
   }
 
   if (format === "json") {
-    if (!share) return json({ error: "Not found. Shared links are deleted after 24 hours.", code: "gone" }, 404);
+    if (!share) return json({ error: "Not found. Shared links are deleted after 1 hour, 24 hours or 3 days.", code: "gone" }, 404);
     return json(
       { id, ...links, title: shareTitle(share.content), sizeBytes: share.sizeBytes, ...isoDates(share), content: share.content },
       200,
@@ -126,7 +126,7 @@ export async function serveShare(request, env, id, format) {
   }
 
   if (format === "html") {
-    if (!share) return text("Not found. Shared links are deleted after 24 hours.\n", 404);
+    if (!share) return text("Not found. Shared links are deleted after 1 hour, 24 hours or 3 days.\n", 404);
     return new Response(await cachedHtml(env, share, links), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
