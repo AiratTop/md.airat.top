@@ -3,7 +3,7 @@ import { env } from "cloudflare:test";
 import { BASE, call, fromAddress, post, readJson, uniqueAddress } from "./helpers.js";
 import { newId } from "../src/ids.js";
 import { sweep } from "../src/index.js";
-import { MAX_CONTENT_BYTES, RATE_LIMITS, SHARE_TTL_MS } from "../src/limits.js";
+import { DEFAULT_TTL, MAX_CONTENT_BYTES, RATE_LIMITS, SHARE_TTLS } from "../src/limits.js";
 
 const SAMPLE = "# Weekly notes\n\nПривет, **мир**.\n\n| a | b |\n| - | - |\n| 1 | 2 |\n";
 
@@ -30,8 +30,30 @@ describe("creating a share", () => {
     expect(typeof share.deleteToken).toBe("string");
 
     const lifetime = Date.parse(share.expiresAt) - Date.parse(share.createdAt);
-    expect(lifetime).toBe(SHARE_TTL_MS);
+    expect(lifetime).toBe(SHARE_TTLS[DEFAULT_TTL]);
+    expect(lifetime).toBe(24 * 60 * 60 * 1000);
     expect(Date.parse(share.createdAt)).toBeGreaterThanOrEqual(before - 1);
+  });
+
+  it("lives as long as the ttl asked for", async () => {
+    const hours = { "1h": 1, "24h": 24, "3d": 72 };
+    expect(Object.keys(SHARE_TTLS).sort()).toEqual(Object.keys(hours).sort());
+    for (const [ttl, h] of Object.entries(hours)) {
+      const response = await post("/api/shares", { content: SAMPLE, ttl });
+      expect(response.status).toBe(201);
+      const share = await readJson(response);
+      expect(Date.parse(share.expiresAt) - Date.parse(share.createdAt)).toBe(h * 60 * 60 * 1000);
+      const row = await env.DB.prepare("SELECT expires_at - created_at AS ms FROM shares WHERE id = ?").bind(share.id).first();
+      expect(row?.ms).toBe(h * 60 * 60 * 1000);
+    }
+  });
+
+  /** Refused, not clamped: a client that asked for a week must not get a day silently. */
+  it("refuses any other ttl", async () => {
+    for (const ttl of ["7d", "1H", "", 3600, 86400000, "toString", "__proto__", ["24h"], { h: 1 }]) {
+      const response = await post("/api/shares", { content: SAMPLE, ttl });
+      expect(response.status, JSON.stringify(ttl)).toBe(400);
+    }
   });
 
   it("stores the delete token only as a hash", async () => {

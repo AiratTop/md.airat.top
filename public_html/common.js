@@ -166,13 +166,16 @@ const deleteShare = async (id, deleteToken = readShareTokens()[id]?.deleteToken)
   return false;
 };
 
-// "in 23 h 41 min", "in 5 min", "in less than a minute".
+// "in 2 d 23 h", "in 23 h 41 min", "in 5 min", "in less than a minute".
 const formatRemaining = (expiresAt) => {
   const minutes = Math.floor((Date.parse(expiresAt) - Date.now()) / 60000);
   if (minutes < 1) {
     return "in less than a minute";
   }
   const hours = Math.floor(minutes / 60);
+  if (hours >= 24) {
+    return `in ${Math.floor(hours / 24)} d ${hours % 24} h`;
+  }
   return hours > 0 ? `in ${hours} h ${minutes % 60} min` : `in ${minutes} min`;
 };
 

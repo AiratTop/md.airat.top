@@ -30,6 +30,9 @@ const shareNew = inDialog("shareNew");
 const shareReused = inDialog("shareReused");
 const shareTokenNote = inDialog("shareTokenNote");
 const shareResultHeading = inDialog("shareResultHeading");
+const shareTtl = inDialog("shareTtl");
+// The lifetime offered when the dialog opens; SHARE_TTLS in src/limits.js holds the rest.
+const DEFAULT_SHARE_TTL = "24h";
 
 // The tour shown on a first visit and by Reset lives in sample.md, where it is plain
 // markdown to edit rather than a string full of escaped backticks.
@@ -307,6 +310,9 @@ const flashLabel = (button, label) => {
 
 const showConfirm = () => {
   showShareError("");
+  // Every new link starts from the default: a short lifetime picked once should not
+  // quietly become the norm for the next document.
+  shareTtl.querySelector(`input[value="${DEFAULT_SHARE_TTL}"]`).checked = true;
   shareConfirm.hidden = false;
   shareResult.hidden = true;
   shareCreate.focus();
@@ -381,6 +387,7 @@ shareCreate.addEventListener("click", async () => {
     return;
   }
 
+  const ttl = shareTtl.querySelector("input:checked")?.value ?? DEFAULT_SHARE_TTL;
   showShareError("");
   shareCreate.disabled = true;
   shareCreate.textContent = "Creating…";
@@ -388,7 +395,7 @@ shareCreate.addEventListener("click", async () => {
     const response = await fetch("/api/shares", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, ttl }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
