@@ -4,7 +4,7 @@
 
 A private markdown live preview with a split editor and preview: GitHub-flavored markdown
 with code highlighting, KaTeX math and Mermaid diagrams, export to HTML and PDF, and
-temporary share links that delete themselves after 24 hours. Runs on Cloudflare Workers
+temporary share links that delete themselves after 1 hour, 24 hours or 3 days. Runs on Cloudflare Workers
 with a D1 database.
 
 - Live site: https://md.airat.top
@@ -46,8 +46,9 @@ with a D1 database.
   - `https://md.airat.top/{id}.html`: the document rendered on the server as plain HTML
     (math included; diagrams stay as their source, since drawing them needs a browser).
 
-  Anyone with the link can read it. It is deleted automatically after 24 hours, and the
-  author can delete it earlier. Sharing the same text again from the same browser offers
+  Anyone with the link can read it. It is deleted automatically after the time the author
+  picks in the Share dialog (1 hour, 24 hours by default, or 3 days), and the author can
+  delete it earlier. Sharing the same text again from the same browser offers
   the existing link; change a single character and you get a new one.
 
 ## Share links
@@ -67,10 +68,11 @@ write to [mail@airat.top](mailto:mail@airat.top). Security issues: see [SECURITY
 ### API
 
 ```bash
-# Create a share (limit: 256 KB of UTF-8; 30 per minute and 300 per day per IPv4 address or IPv6 /64)
+# Create a share (limit: 256 KB of UTF-8; 30 per minute and 300 per day per IPv4 address or IPv6 /64).
+# "ttl" is "1h", "24h" or "3d"; without it the link lives 24 hours.
 curl -s https://md.airat.top/api/shares \
   -H 'Content-Type: application/json' \
-  -d '{"content":"# Hello\n\nShared from the command line."}'
+  -d '{"content":"# Hello\n\nShared from the command line.","ttl":"24h"}'
 ```
 
 ```json

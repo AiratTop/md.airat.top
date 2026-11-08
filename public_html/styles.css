@@ -819,6 +819,65 @@ html[data-theme="dark"] .preview pre {
   border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border));
 }
 
+/* The link's lifetime: three pills, one chosen. The radios stay in the page (keyboard,
+   screen readers) and the label's span draws the pill. */
+.share-ttl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 4px;
+  padding: 0;
+  border: 0;
+}
+
+.share-ttl legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.share-ttl label {
+  position: relative;
+  cursor: pointer;
+}
+
+.share-ttl input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+.share-ttl span {
+  display: inline-block;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.share-ttl label:hover span {
+  border-color: var(--accent-2);
+}
+
+.share-ttl input:checked + span {
+  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 14%, var(--surface-2));
+  color: var(--accent-2);
+}
+
+.share-ttl input:focus-visible + span {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
 .dialog__actions {
   display: flex;
   justify-content: flex-end;

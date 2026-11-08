@@ -1,6 +1,6 @@
 ---
 title: Markdown Live Preview
-description: Write on the left, read on the right, share a link for 24 hours.
+description: Write on the left, read on the right, share a link for up to 3 days.
 author: md.airat.top
 tags: [markdown, gfm, mermaid, katex, share]
 ---
@@ -8,7 +8,8 @@ tags: [markdown, gfm, mermaid, katex, share]
 # 👋 Markdown Live Preview
 
 Write on the left, see it on the right. Your text stays in this browser
-until you press **Share** 🔗, and then the link lives for **24 hours**.
+until you press **Share** 🔗, and then the link lives for **1 hour, 24 hours
+or 3 days**, as you choose.
 
 > [!NOTE]
 > This whole page is markdown. Edit anything and watch the preview follow.
@@ -48,7 +49,7 @@ Emoji by name :rocket: :tada: :coffee:, or as they are 🌿 ✅ 🧠.
 |:--|:--:|--:|
 | Live preview | ✅ editor | as you type |
 | Sync scroll | ✅ editor | both ways |
-| Share link | ✅ 24 hours | `.md` and `.json` too |
+| Share link | ✅ 1 h · 24 h · 3 d | `.md` and `.json` too |
 | Account | ❌ not needed | — |
 
 ## 💻 Code
@@ -150,7 +151,7 @@ Images work as `![alt](url)` or `<img>`, like the Airat.Top icon:
 
 Editing and preview happen in this browser; the draft is saved in its local
 storage. Nothing leaves it until you press **Share**, and a shared link is
-readable by anyone who has it, then deleted after 24 hours. No analytics, no
+readable by anyone who has it, then deleted after the time you chose. No analytics, no
 third-party scripts.
 
 [^tour]: Like this one. Footnotes collect at the end of the document.

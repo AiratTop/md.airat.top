@@ -3,7 +3,7 @@
 ## Purpose
 Browser Markdown live preview tool (`md.airat.top`), plus temporary share links: a
 snapshot of the text, readable by anyone with the link, deleted automatically after
-24 hours.
+1 hour, 24 hours (the default) or 3 days, as the author picks.
 
 Why sharing exists: passing a markdown document to someone (or to a model) should take
 one click and no account, and nothing needs to be kept for long. It is not a pastebin
@@ -61,7 +61,8 @@ and not a secret store — see `../secret.airat.top` for that.
   it rather than download it); `/{ULID}.json` markdown plus metadata; `/{ULID}.html`
   rendered on the server (`src/html.js`). Lowercase ids 301
   to uppercase. Unknown, expired and deleted are one 404.
-- `POST /api/shares` `{content}` → links, `expiresAt`, `deleteToken` (returned once).
+- `POST /api/shares` `{content, ttl?}` → links, `expiresAt`, `deleteToken` (returned once).
+  `ttl` is `"1h"`, `"24h"` or `"3d"`, default `"24h"`; anything else is a 400.
 - `DELETE /api/shares/{id}` `{deleteToken}`.
 - `/health` liveness with a D1 round trip, ahead of the rate limiter.
 
@@ -128,12 +129,17 @@ and not a secret store — see `../secret.airat.top` for that.
   `src/markdown.js` (15 more, the ones most often missed). Not the full build: its 193
   languages would triple `markdown-kit.js`, which every page loads. Add a language there,
   then `npm run vendor`; `test/html.test.ts` lists what must highlight.
-- Share lifetime is fixed at 24 hours (`SHARE_TTL_MS`). Content cap 256 KB of UTF-8,
-  repeated in `app.js` as `MAX_SHARE_BYTES`; `test/limits.test.ts` keeps them equal.
+- Share lifetime is one of `SHARE_TTLS` in `src/limits.js`: 1 hour, 24 hours (default,
+  `DEFAULT_TTL`) or 3 days. Three days is the ceiling on purpose: longer links make the
+  service hosting for spam and phishing and multiply the D1 a flood can hold. The share
+  dialog offers the same keys as radios (`#shareTtl`) and starts at 24 hours every time;
+  `test/limits.test.ts` keeps the radios, `DEFAULT_SHARE_TTL` in `app.js` and the API
+  equal. Content cap 256 KB of UTF-8, repeated in `app.js` as `MAX_SHARE_BYTES`, checked
+  by the same test.
 - Creating is rate limited per IPv4 address or IPv6 /64 (`src/address.js`), 30/minute
   and 300/day, via the Durable Object in `src/rate-limiter.js` (see `../secret.airat.top/AGENTS.md` for why not the rate limit
   binding). Reading is not metered. If D1 ever fills, creates fail until the oldest shares
-  expire — reads are unaffected and it heals itself within 24 hours.
+  expire — reads are unaffected and it heals itself within 3 days.
 - Delete tokens are stored only as SHA-256; the creator's browser keeps the token in
   localStorage (`md-preview-shares`) for "Delete now", with a SHA-256 of the text so that
   sharing the same text again offers the existing link (checked with a HEAD to `.md`).

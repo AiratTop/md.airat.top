@@ -8,7 +8,7 @@
 import { newId, isShareId, randomToken, sha256Hex } from "./ids.js";
 import { insertShare, deleteShare } from "./db.js";
 import { json, error, readJson, MAX_BODY_BYTES } from "./http.js";
-import { MAX_CONTENT_BYTES, SHARE_TTL_MS } from "./limits.js";
+import { MAX_CONTENT_BYTES, SHARE_TTLS, DEFAULT_TTL } from "./limits.js";
 import { shareLinks } from "./links.js";
 
 /**
@@ -43,6 +43,13 @@ async function handleCreate(request, env) {
     return error(`content must be at most ${MAX_CONTENT_BYTES} bytes of UTF-8.`, 413, "too_large");
   }
 
+  // One of a few named lifetimes, not a number: any other value is refused rather than
+  // clamped, so a client never gets a lifetime it did not ask for.
+  const ttl = parsed.value.ttl ?? DEFAULT_TTL;
+  if (typeof ttl !== "string" || !Object.hasOwn(SHARE_TTLS, ttl)) {
+    return error(`ttl must be one of ${Object.keys(SHARE_TTLS).join(", ")}.`, 400);
+  }
+
   const now = Date.now();
   const deleteToken = randomToken();
   const share = {
@@ -50,7 +57,7 @@ async function handleCreate(request, env) {
     content,
     sizeBytes,
     createdAt: now,
-    expiresAt: now + SHARE_TTL_MS,
+    expiresAt: now + SHARE_TTLS[ttl],
     deleteTokenHash: await sha256Hex(deleteToken)
   };
 

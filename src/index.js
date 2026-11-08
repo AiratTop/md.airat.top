@@ -1,6 +1,6 @@
 /**
  * md.airat.top — a markdown live preview that runs in the browser, plus share links that
- * delete themselves after 24 hours.
+ * delete themselves after 1 hour, 24 hours or 3 days.
  *
  * The editor is static and never sends anything anywhere. Sharing is the one explicit
  * exception: the author presses Share, confirms, and a snapshot of the text is stored in

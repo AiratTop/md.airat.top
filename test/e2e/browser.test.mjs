@@ -151,6 +151,34 @@ test("sharing the same text again offers the same link; changed text gets a new 
   await context.close();
 });
 
+test("the author picks the lifetime; every new link starts at 24 hours", async () => {
+  const text = `# Lifetime ${Date.now()}\n\nbody`;
+  const { page, posts, context } = await openPage("/", { draft: text });
+  await page.click("#shareBtn");
+  await page.waitForSelector("#shareDialog[open]");
+  assert.equal(await page.inputValue("#shareTtl input:checked"), "24h");
+
+  // The radio itself is hidden; clicking its pill is what a person does.
+  await page.click('#shareTtl label:has(input[value="3d"])');
+  await page.click("#shareCreate");
+  await page.waitForSelector("#shareResult:not([hidden])");
+  assert.equal(posts[0].postDataJSON().ttl, "3d");
+  assert.match(await page.textContent("#shareExpiry"), /in 2 d 23 h|in 3 d 0 h/);
+
+  // "New link" for the same text goes back through the choice, from the default again.
+  await page.click("#shareResult [data-close]");
+  await page.click("#shareBtn");
+  await page.waitForSelector("#shareReused:not([hidden])");
+  await page.click("#shareNew");
+  assert.equal(await page.inputValue("#shareTtl input:checked"), "24h");
+  await page.click('#shareTtl label:has(input[value="1h"])');
+  await page.click("#shareCreate");
+  await page.waitForFunction(() => document.getElementById("shareResultHeading").textContent === "Link created");
+  assert.equal(posts[1].postDataJSON().ttl, "1h");
+  assert.match(await page.textContent("#shareExpiry"), /in (59|60) min|in 1 h 0 min/);
+  await context.close();
+});
+
 test("a long document scrolls inside the panes, and Sync Scroll follows", async () => {
   const long = Array.from({ length: 300 }, (_, i) => `Paragraph ${i}`).join("\n\n");
   const { page, context } = await openPage("/", { draft: long });
