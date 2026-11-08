@@ -83,8 +83,15 @@ async function openPage(path = "/", { blockStorage = false, draft, scale = 1, be
   const page = await context.newPage();
   // A third-party script added to a page is blocked by the CSP before it makes any
   // request, so the violation report is where it shows up.
+  // One exception: since Chrome ~157, DOMPurify's parse of a payload such as
+  // <img onerror> reports the blocked handler from purify.min.js, though the handler never
+  // runs and is stripped before anything reaches the page. The XSS test checks the result
+  // in the DOM instead; a handler reported from anywhere else still fails the suite.
   page.on("console", (message) => {
-    if (/Content Security Policy/.test(message.text())) foreignRequests.push(message.text());
+    const text = message.text();
+    if (!/Content Security Policy/.test(text)) return;
+    if (/inline event handler/.test(text) && message.location().url.endsWith("/vendor/purify.min.js")) return;
+    foreignRequests.push(text);
   });
   const posts = [];
   page.on("request", (request) => {
