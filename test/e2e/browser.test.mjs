@@ -383,6 +383,16 @@ test("math renders with KaTeX; prices stay prose and untrusted commands stay out
   await context.close();
 });
 
+test("a formula nested too deeply stays as TeX, and the formulas after it still render", async () => {
+  const deep = "{".repeat(5000) + "x" + "}".repeat(5000);
+  const { page, context } = await openPage("/", { draft: `Before $a^2$\n\n$$${deep}$$\n\nAfter $b^2$` });
+  await page.waitForSelector("#preview .math-tex.is-invalid", { timeout: 10_000 });
+  await page.waitForFunction(() => document.querySelectorAll("#preview .math-tex.is-rendered").length === 2);
+  const length = await page.evaluate(() => document.querySelector("#preview .math-tex.is-invalid").textContent.length);
+  assert.equal(length, 10_001);
+  await context.close();
+});
+
 test("a first visit opens the tour from sample.md, and Reset brings it back", async () => {
   const { page, context } = await openPage("/");
   await page.waitForFunction(() => document.getElementById("markdownInput").value.startsWith("---"));
@@ -511,6 +521,29 @@ test("a second tab follows the draft, and a theme change there does not overwrit
 
   await first.reload();
   assert.equal(await first.inputValue("#markdownInput"), "new text from the first tab");
+  await context.close();
+});
+
+/**
+ * Two tabs typing at once: each receives the other's write after making its own. The
+ * late event must not put the older text back, or the next keystroke saves it over the
+ * newer one. The late event is replayed here as the browser would deliver it.
+ */
+test("a late storage event from another tab does not bring back older text", async () => {
+  const { page, context } = await openPage("/", { draft: "start" });
+  await page.fill("#markdownInput", "Draft B");
+  await page.evaluate(() => {
+    window.dispatchEvent(new StorageEvent("storage", { key: "md-preview-content", oldValue: "start", newValue: "Draft A" }));
+  });
+  await page.waitForTimeout(100);
+  assert.equal(await page.inputValue("#markdownInput"), "Draft B");
+
+  // A newer write from the other tab is still followed.
+  await page.evaluate(() => {
+    localStorage.setItem("md-preview-content", "Draft C");
+    window.dispatchEvent(new StorageEvent("storage", { key: "md-preview-content", oldValue: "Draft B", newValue: "Draft C" }));
+  });
+  await page.waitForFunction(() => document.getElementById("markdownInput").value === "Draft C");
   await context.close();
 });
 
@@ -694,6 +727,17 @@ test("Export as HTML gives one light, script-free file that works offline", asyn
   assert.match(html, /<img src="data:image\/png;base64,/, "this site's images are embedded");
   assert.match(html, /<svg/);
   assert.match(html, /#ececff/i, "diagrams are drawn in the light theme");
+  await context.close();
+});
+
+test("an image with an invalid address does not stop the HTML export", async () => {
+  const { page, context } = await openPage("/", { draft: '# Broken image\n\n<img src="http://[" alt="broken">\n\nThe rest of the document.' });
+  await page.waitForSelector("#preview img");
+  const html = await downloadedText(await exportAs(page, "html"));
+  assert.match(html, /<title>Broken image<\/title>/);
+  assert.match(html, /The rest of the document\./);
+  assert.match(html, /<img src="http:\/\/\["/);
+  assert.match(await page.textContent("#status"), /1 image has an invalid address/);
   await context.close();
 });
 

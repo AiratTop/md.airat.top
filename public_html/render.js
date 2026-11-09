@@ -8,7 +8,7 @@
 // as script, so a document cannot restyle the page around it into something that looks
 // like part of the site.
 
-const { md, escapeHtml } = MarkdownKit;
+const { md, escapeHtml, texTooDeep } = MarkdownKit;
 
 const USER_ID_PREFIX = "user-content-";
 
@@ -60,8 +60,41 @@ const renderMarkdown = (markdown) =>
 // would remove.
 
 let mermaidLoading = null;
-const diagramCache = new Map();
 let diagramCount = 0;
+
+// Drawn diagrams by theme and source, so re-rendering the preview does not redraw them.
+// Every edit to a diagram adds a version, so the cache is bounded — by entries and by
+// characters — and forgets the least recently used first (a Map keeps insertion order;
+// a hit moves its entry to the end).
+const DIAGRAM_CACHE_ENTRIES = 50;
+const DIAGRAM_CACHE_CHARACTERS = 4_000_000;
+const diagramCache = new Map();
+let diagramCacheCharacters = 0;
+
+const cachedDiagram = (key) => {
+  const svg = diagramCache.get(key);
+  if (svg !== undefined) {
+    diagramCache.delete(key);
+    diagramCache.set(key, svg);
+  }
+  return svg;
+};
+
+const cacheDiagram = (key, svg) => {
+  const size = (entryKey, value) => entryKey.length + (value?.length ?? 0);
+  if (diagramCache.has(key)) {
+    diagramCacheCharacters -= size(key, diagramCache.get(key));
+    diagramCache.delete(key);
+  }
+  diagramCache.set(key, svg);
+  diagramCacheCharacters += size(key, svg);
+  for (const [oldKey, oldSvg] of diagramCache) {
+    if (diagramCache.size <= DIAGRAM_CACHE_ENTRIES && diagramCacheCharacters <= DIAGRAM_CACHE_CHARACTERS) break;
+    if (oldKey === key) break; // the newest entry stays, however large
+    diagramCache.delete(oldKey);
+    diagramCacheCharacters -= size(oldKey, oldSvg);
+  }
+};
 
 const loadMermaid = () => {
   mermaidLoading ??= import("/vendor/mermaid/mermaid.js").then((module) => module.default);
@@ -92,7 +125,7 @@ const renderDiagrams = async (container, { theme: forcedTheme } = {}) => {
   for (const block of blocks) {
     const source = block.textContent;
     const key = `${theme}\n${source}`;
-    let svg = diagramCache.get(key);
+    let svg = cachedDiagram(key);
     if (svg === undefined) {
       try {
         const result = await mermaid.render(`mermaid-diagram-${++diagramCount}`, source);
@@ -100,7 +133,7 @@ const renderDiagrams = async (container, { theme: forcedTheme } = {}) => {
       } catch (error) {
         svg = null;
       }
-      diagramCache.set(key, svg);
+      cacheDiagram(key, svg);
     }
     // The preview may have been re-rendered while mermaid worked.
     if (!block.isConnected) continue;
@@ -146,22 +179,32 @@ const loadKatex = () => {
 };
 
 const renderMath = async (container) => {
-  const nodes = [...container.querySelectorAll(".math-tex:not(.is-rendered)")];
+  const nodes = [...container.querySelectorAll(".math-tex:not(.is-rendered):not(.is-invalid)")];
   if (!nodes.length) {
     return;
   }
   const katex = await loadKatex();
   for (const node of nodes) {
     if (!node.isConnected) continue;
-    katex.render(node.textContent, node, {
-      displayMode: node.classList.contains("is-display"),
-      throwOnError: false,
-      trust: false,
-      strict: "ignore",
-      maxSize: 20,
-      maxExpand: 500,
-      output: "htmlAndMathml",
-    });
-    node.classList.add("is-rendered");
+    // A formula KaTeX cannot handle stays as its TeX, and the ones after it still render.
+    // katex.render fills the node only once it has succeeded.
+    try {
+      if (texTooDeep(node.textContent)) {
+        throw new RangeError("nested too deeply");
+      }
+      katex.render(node.textContent, node, {
+        displayMode: node.classList.contains("is-display"),
+        throwOnError: false,
+        trust: false,
+        strict: "ignore",
+        maxSize: 20,
+        maxExpand: 500,
+        output: "htmlAndMathml",
+      });
+      node.classList.add("is-rendered");
+    } catch (error) {
+      node.classList.add("is-invalid");
+      node.title = "This formula is too complex to render.";
+    }
   }
 };

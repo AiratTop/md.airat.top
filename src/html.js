@@ -11,7 +11,7 @@
  */
 
 import katex from "katex";
-import { createMarkdown, escapeHtml } from "./markdown.js";
+import { createMarkdown, escapeHtml, texTooDeep } from "./markdown.js";
 
 const md = createMarkdown();
 
@@ -142,16 +142,27 @@ export async function renderHtmlFragment(markdown) {
         const displayMode = (element.getAttribute("class") ?? "").split(/\s+/).includes("is-display");
         element.onEndTag((end) => {
           hasMath = true;
-          const html = katex.renderToString(decodeTex(tex), {
-            displayMode,
-            throwOnError: false,
-            trust: false,
-            strict: "ignore",
-            maxSize: 20,
-            maxExpand: 500,
-            output: "htmlAndMathml"
-          });
-          end.before(html, { html: true });
+          const source = decodeTex(tex);
+          // One formula KaTeX cannot handle stays as its TeX; it must not take the page down.
+          /** @type {string | null} */
+          let html = null;
+          if (!texTooDeep(source)) {
+            try {
+              html = katex.renderToString(source, {
+                displayMode,
+                throwOnError: false,
+                trust: false,
+                strict: "ignore",
+                maxSize: 20,
+                maxExpand: 500,
+                output: "htmlAndMathml"
+              });
+            } catch (error) {
+              html = null;
+            }
+          }
+          if (html === null) end.before(source);
+          else end.before(html, { html: true });
         });
       },
       text(chunk) {

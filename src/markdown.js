@@ -49,6 +49,39 @@ for (const [name, language] of Object.entries(EXTRA_LANGUAGES)) hljs.registerLan
 export const escapeHtml = (value) =>
   String(value).replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 
+/**
+ * Whether TeX nests deeper than KaTeX is given: braces, \left…\right and \begin…\end.
+ * KaTeX's parser recurses once per level and runs out of stack somewhere between 600 and
+ * 2000 levels — about 10 KB of formula, well inside the share limit — where
+ * `throwOnError: false` no longer helps: /{id}.html answered 500 and the browser stopped
+ * rendering the formulas after it. Real formulas stay far below the limit. Linear, and
+ * shared by the Worker and the browser (via vendor/markdown-kit.js).
+ */
+export const MAX_TEX_DEPTH = 100;
+
+export function texTooDeep(tex) {
+  let depth = 0;
+  for (let i = 0; i < tex.length; i++) {
+    const char = tex[i];
+    if (char === "{") {
+      depth++;
+    } else if (char === "}") {
+      depth = Math.max(0, depth - 1);
+    } else if (char === "\\") {
+      // A command is a backslash and its letters; \leftarrow is not \left. Anything else
+      // after the backslash (\{ among them) is one escaped character and opens nothing.
+      let end = i + 1;
+      while (end < tex.length && /[a-zA-Z]/.test(tex[end])) end++;
+      const name = tex.slice(i + 1, end);
+      if (name === "left" || name === "begin") depth++;
+      else if (name === "right" || name === "end") depth = Math.max(0, depth - 1);
+      i = Math.max(end, i + 2) - 1;
+    }
+    if (depth > MAX_TEX_DEPTH) return true;
+  }
+  return false;
+}
+
 // Bounds on the front-matter table (see frontMatterTable): far past any real front matter,
 // far short of what YAML aliases can expand into.
 const FRONT_MATTER_MAX_DEPTH = 32;

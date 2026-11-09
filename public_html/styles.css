@@ -548,6 +548,10 @@ textarea {
   height: auto;
 }
 
+.preview .math-tex.is-invalid {
+  text-decoration: underline wavy rgba(214, 69, 69, 0.6);
+}
+
 .preview pre.mermaid-source.is-invalid {
   outline: 2px solid rgba(214, 69, 69, 0.6);
 }
