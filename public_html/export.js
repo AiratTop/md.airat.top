@@ -92,6 +92,16 @@ const toDataUrl = async (url) => {
   });
 };
 
+// A document's URLs are the author's: "http://[" renders as a broken image but throws
+// in new URL(). Null for those, so one bad address never fails the whole export.
+const resolveUrl = (value) => {
+  try {
+    return new URL(value, location.href);
+  } catch (error) {
+    return null;
+  }
+};
+
 // A copy of the document whose links and images still work when the file is opened from
 // disk, where a relative URL would point into the file system: this site's own images are
 // embedded, every other URL becomes absolute, and in-page #links stay as they are.
@@ -99,13 +109,7 @@ const toDataUrl = async (url) => {
 // src that was embedded, and on a high-density screen it does.
 const portableCopy = async (container) => {
   const copy = container.cloneNode(true);
-  const absolute = (value) => {
-    try {
-      return new URL(value, location.href).href;
-    } catch (error) {
-      return value;
-    }
-  };
+  const absolute = (value) => resolveUrl(value)?.href ?? value;
   for (const source of copy.querySelectorAll("picture source")) source.remove();
   for (const element of copy.querySelectorAll("[srcset]")) {
     element.removeAttribute("srcset");
@@ -122,7 +126,10 @@ const portableCopy = async (container) => {
   }
   await Promise.all(
     [...copy.querySelectorAll("img[src]")].map(async (image) => {
-      const url = new URL(image.getAttribute("src"), location.href);
+      const url = resolveUrl(image.getAttribute("src"));
+      if (!url) {
+        return; // stays as written: broken here, broken in the file, and reported
+      }
       if (url.origin === location.origin) {
         image.setAttribute("src", await toDataUrl(url).catch(() => url.href));
       } else {
@@ -180,12 +187,20 @@ const exportHtml = async (markdown) => {
   const title = documentTitle(container);
   download(fileName(title, "html"), "text/html;charset=utf-8", await standaloneHtml(container, title));
   // Other sites' images are not embedded: fetching them would take a request to another
-  // origin, which this site's policy refuses. They stay links, and the author is told.
-  const external = [...container.querySelectorAll("img[src]")].filter(
-    (image) => new URL(image.getAttribute("src"), location.href).origin !== location.origin
-  ).length;
+  // origin, which this site's policy refuses. They stay links, and the author is told,
+  // as they are about images whose address is not a valid URL.
+  const urls = [...container.querySelectorAll("img[src]")].map((image) => resolveUrl(image.getAttribute("src")));
+  const external = urls.filter((url) => url && url.origin !== location.origin).length;
+  const invalid = urls.filter((url) => !url).length;
+  const notes = [];
   if (external) {
-    showStatus(`Exported. ${external === 1 ? "1 image from another site stays a link" : `${external} images from other sites stay links`}: the file needs the network to show ${external === 1 ? "it" : "them"}.`, 6000);
+    notes.push(`${external === 1 ? "1 image from another site stays a link" : `${external} images from other sites stay links`}: the file needs the network to show ${external === 1 ? "it" : "them"}.`);
+  }
+  if (invalid) {
+    notes.push(`${invalid === 1 ? "1 image has" : `${invalid} images have`} an invalid address and ${invalid === 1 ? "was" : "were"} left as written.`);
+  }
+  if (notes.length) {
+    showStatus(`Exported. ${notes.join(" ")}`, 6000);
   }
 };
 

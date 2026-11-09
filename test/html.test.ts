@@ -3,6 +3,7 @@ import { env } from "cloudflare:test";
 import { BASE, call, post, readJson } from "./helpers.js";
 import { newId } from "../src/ids.js";
 import { renderHtmlFragment } from "../src/html.js";
+import { MAX_TEX_DEPTH, texTooDeep } from "../src/markdown.js";
 
 async function create(content: string) {
   return readJson(await post("/api/shares", { content }));
@@ -196,6 +197,40 @@ describe("server-side cleaning", () => {
 });
 
 describe("hostile input", () => {
+  /** 5000 nested groups is 10 KB of formula; KaTeX overflowed the stack on it and the page answered 500. */
+  it("shows a formula nested too deeply as TeX, and still renders the next one", async () => {
+    const deep = "{".repeat(5000) + "x" + "}".repeat(5000);
+    const share = await create(`Before $a^2$\n\n$$${deep}$$\n\nAfter $b^2$`);
+    const response = await call(`/${share.id}.html`);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html.match(/class="katex"/g)?.length).toBe(2);
+    expect(html).toContain("{{{{x}}}}");
+
+    const forms: [string, string][] = [["\\left(", "\\right)"], ["\\begin{matrix}", "\\end{matrix}"], ["\\frac{", "}{2}"], ["x^{", "}"]];
+    for (const [open, close] of forms) {
+      const { html } = await renderHtmlFragment(`$$${open.repeat(3000)}1${close.repeat(3000)}$$\n\nThen $c^2$`);
+      expect(html, open).toContain('class="katex"');
+    }
+  });
+
+  it("measures TeX depth by groups, not by command names that start the same", () => {
+    const nest = (n: number) => "{".repeat(n) + "x" + "}".repeat(n);
+    expect(texTooDeep(nest(MAX_TEX_DEPTH))).toBe(false);
+    expect(texTooDeep(nest(MAX_TEX_DEPTH + 1))).toBe(true);
+    expect(texTooDeep("\\left(".repeat(MAX_TEX_DEPTH + 1))).toBe(true);
+    // Long formulas that never nest deep: arrows, escaped braces, many sibling groups.
+    expect(texTooDeep("a \\leftarrow b \\rightarrow ".repeat(500))).toBe(false);
+    expect(texTooDeep("\\{".repeat(500))).toBe(false);
+    expect(texTooDeep("\\frac{1}{2} + ".repeat(2000))).toBe(false);
+    expect(texTooDeep("\\begin{pmatrix} a \\end{pmatrix}".repeat(500))).toBe(false);
+  });
+
+  it("renders a formula nested as deep as allowed", async () => {
+    const { html } = await renderHtmlFragment(`$$${"\\frac{".repeat(MAX_TEX_DEPTH)}1${"}{2}".repeat(MAX_TEX_DEPTH)}$$`);
+    expect(html).toContain('class="katex-display"');
+  });
+
   /** Each of these once made /{id}.html answer 500 for a share that was created fine. */
   const HOSTILE = {
     "a YAML alias that contains itself": "---\na: &a [*a]\n---\n\nhello",

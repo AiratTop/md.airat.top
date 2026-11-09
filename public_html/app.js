@@ -152,13 +152,20 @@ textarea.addEventListener("input", () => {
 
 // Another tab saved the draft: this one follows, so the two never hold different texts
 // and neither can save its stale copy over the other's. (The event fires only in the
-// tabs that did not write.)
+// tabs that did not write.) It follows what storage holds now, not the event's newValue:
+// events arrive late, and when two tabs type at once, each gets the other's write after
+// making its own. Applying newValue there left each tab showing the other's older text,
+// and the next keystroke saved it over the newer one.
 window.addEventListener("storage", (event) => {
-  if (event.key !== STORAGE_KEYS.content || event.newValue === null || event.newValue === textarea.value) {
+  if (event.key !== STORAGE_KEYS.content) {
+    return;
+  }
+  const current = getStored(STORAGE_KEYS.content, null);
+  if (current === null || current === textarea.value) {
     return;
   }
   const { selectionStart, selectionEnd } = textarea;
-  textarea.value = event.newValue;
+  textarea.value = current;
   textarea.setSelectionRange(selectionStart, selectionEnd);
   revision++;
   renderNow();
